@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>📦 仓库本地系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoi4pqh77yP5L2g5Zy65L2/55So57O757ufIiwic2hvcnRfbmFtZSI6IuKaoeezu+e7nyIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjZjNmNGY2In0=">
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overscroll-behavior-y: none; }
+        .photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .photo-item { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: #e5e7eb; }
+        .photo-item img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-item .del-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(239,68,68,0.9); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+        .input-group input { width: 100%; padding: 12px 14px; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 16px; background: white; transition: border-color 0.2s; }
+        .input-group input:focus { outline: none; border-color: #3b82f6; }
+        .camera-btn { width: 100%; padding: 14px; border: 2px dashed #9ca3af; border-radius: 10px; background: #f9fafb; color: #6b7280; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; }
+        .camera-btn:active { background: #e5e7eb; transform: scale(0.98); }
+        .save-btn { width: 100%; padding: 16px; background: #2563eb; color: white; border: none; border-radius: 12px; font-size: 17px; font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 2px 8px rgba(37,99,235,0.3); }
+        .save-btn:active { transform: scale(0.97); background: #1d4ed8; }
+        .save-btn.secondary { background: #059669; box-shadow: 0 2px 8px rgba(5,150,105,0.3); }
+        .save-btn.secondary:active { background: #047857; }
+        .save-btn.warning { background: #d97706; box-shadow: 0 2px 8px rgba(217,119,6,0.3); }
+        .save-btn.warning:active { background: #b45309; }
+        .record-card { background: white; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .tab-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e7eb; display: flex; justify-content: space-around; padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); z-index: 50; }
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; color: #9ca3af; font-size: 11px; cursor: pointer; }
+        .tab-item.active { color: #2563eb; }
+        .page { display: none; padding: 16px 16px 100px; }
+        .page.active { display: block; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+        .modal.show { display: flex; }
+        .modal-content { background: white; border-radius: 16px; width: 100%; max-height: 85vh; overflow-y: auto; padding: 20px; }
+        .detail-img { width: 100%; border-radius: 8px; margin-bottom: 8px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-100px); background: #1f2937; color: white; padding: 12px 24px; border-radius: 10px; font-size: 14px; z-index: 200; transition: transform 0.3s; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .search-box { width: 100%; padding: 10px 14px; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 15px; margin-bottom: 12px; background: white; }
+        .stats-bar { display: flex; gap: 10px; margin-bottom: 12px; }
+        .stat-box { flex: 1; background: white; border-radius: 10px; padding: 12px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+        .stat-num { font-size: 20px; font-weight: 700; color: #2563eb; }
+        .stat-label { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+        .view-toggle { display: flex; gap: 4px; margin-bottom: 12px; background: #f3f4f6; padding: 4px; border-radius: 10px; }
+        .view-toggle-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: transparent; color: #6b7280; transition: all 0.2s; }
+        .view-toggle-btn.active { background: white; color: #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .view-toggle-btn:active { transform: scale(0.97); }
+
+        .customer-group-card { background: white; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+        .customer-group-header { padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-bottom: 1px solid #e0f2fe; }
+        .customer-group-header:active { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); }
+        .customer-group-header .cg-left { flex: 1; }
+        .customer-group-header .cg-name { font-size: 16px; font-weight: 700; color: #0c4a6e; }
+        .customer-group-header .cg-meta { font-size: 12px; color: #0369a1; margin-top: 3px; }
+        .customer-group-header .cg-right { display: flex; align-items: center; gap: 8px; }
+        .customer-group-header .cg-count { background: #0284c7; color: white; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+        .customer-group-header .cg-arrow { transition: transform 0.3s; color: #0369a1; }
+        .customer-group-header.expanded .cg-arrow { transform: rotate(180deg); }
+        .customer-group-body { display: none; padding: 10px 12px; background: #fafafa; }
+        .customer-group-body.show { display: block; }
+        .customer-group-body .record-card { margin-bottom: 8px; box-shadow: none; border: 1px solid #f3f4f6; }
+        .customer-group-body .record-card:last-child { margin-bottom: 0; }
+        .customer-group-actions { display: flex; gap: 8px; padding: 10px 12px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+        .cg-action-btn { flex: 1; padding: 8px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .cg-action-btn.export { background: #dbeafe; color: #1e40af; }
+        .cg-action-btn.export:active { background: #bfdbfe; }
+        .cg-action-btn.toggle { background: #f1f5f9; color: #475569; }
+        .cg-action-btn.toggle:active { background: #e2e8f0; }
+
+        .perm-tip { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; }
+        .perm-tip.granted { background: #ecfdf5; color: #065f46; }
+        .perm-tip.prompt { background: #fef3c7; color: #92400e; }
+        .perm-tip.denied { background: #fee2e2; color: #991b1b; }
+        .perm-tip .perm-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .perm-tip.granted .perm-dot { background: #10b981; }
+        .perm-tip.prompt .perm-dot { background: #f59e0b; }
+        .perm-tip.denied .perm-dot { background: #ef4444; }
+
+        .customer-select-wrap { position: relative; }
+        .customer-trigger { width: 100%; padding: 12px 14px; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 16px; background: white; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: border-color 0.2s; }
+        .customer-trigger:focus { outline: none; border-color: #3b82f6; }
+        .customer-trigger .placeholder { color: #9ca3af; }
+        .customer-trigger .value { color: #111827; font-weight: 500; }
+        .customer-dropdown { display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: white; border: 1.5px solid #e5e7eb; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 60; max-height: 320px; overflow: hidden; flex-direction: column; }
+        .customer-dropdown.show { display: flex; }
+        .customer-dropdown-search { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
+        .customer-dropdown-search input { width: 100%; padding: 8px 12px; border: 1.5px solid #e5e7eb; border-radius: 8px; font-size: 14px; background: #f9fafb; }
+        .customer-dropdown-search input:focus { outline: none; border-color: #3b82f6; background: white; }
+        .customer-list { overflow-y: auto; flex: 1; padding: 4px; }
+        .customer-item { padding: 12px 14px; border-radius: 8px; cursor: pointer; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center; }
+        .customer-item:active { background: #eff6ff; }
+        .customer-item .c-name { font-size: 15px; font-weight: 600; color: #111827; }
+        .customer-item .c-id { font-size: 12px; color: #059669; margin-top: 2px; font-weight: 500; }
+        .customer-item .c-check { color: #3b82f6; font-size: 18px; display: none; }
+        .customer-item.selected .c-check { display: block; }
+        .customer-item.selected { background: #eff6ff; }
+        .customer-dropdown-footer { padding: 10px; border-top: 1px solid #f3f4f6; text-align: center; color: #6b7280; font-size: 12px; }
+        .customer-backdrop { display: none; position: fixed; inset: 0; z-index: 55; }
+        .customer-backdrop.show { display: block; }
+
+        .customer-card { background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; }
+        .customer-card .c-info { flex: 1; }
+        .customer-card .c-name-row { font-size: 16px; font-weight: 700; color: #111827; }
+        .customer-card .c-id-row { font-size: 13px; color: #059669; margin-top: 3px; font-weight: 500; }
+        .customer-card .c-del { width: 36px; height: 36px; border-radius: 50%; background: #fee2e2; color: #dc2626; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; }
+        .customer-card .c-del:active { background: #fecaca; transform: scale(0.95); }
+
+        .scan-input-wrap { display: flex; gap: 8px; align-items: stretch; }
+        .scan-input-wrap input { flex: 1; }
+        .scan-btn { padding: 0 14px; background: #10b981; color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; white-space: nowrap; transition: all 0.2s; }
+        .scan-btn:active { background: #059669; transform: scale(0.97); }
+
+        .scan-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 300; flex-direction: column; }
+        .scan-overlay.show { display: flex; }
+        .scan-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: rgba(0,0,0,0.85); color: white; backdrop-filter: blur(10px); }
+        .scan-close { background: rgba(255,255,255,0.15); border: none; color: white; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .scan-body { flex: 1; position: relative; overflow: hidden; background: #000; }
+        #barcodeReader { width: 100%; height: 100%; }
+        #barcodeReader video { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+        .scan-frame { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85vw; max-width: 400px; height: 160px; border: none; pointer-events: none; z-index: 10; }
+        .scan-frame .corner { position: absolute; width: 24px; height: 24px; border-color: #10b981; border-style: solid; border-width: 0; }
+        .scan-frame .corner.tl { top: 0; left: 0; border-top-width: 4px; border-left-width: 4px; border-top-left-radius: 12px; }
+        .scan-frame .corner.tr { top: 0; right: 0; border-top-width: 4px; border-right-width: 4px; border-top-right-radius: 12px; }
+        .scan-frame .corner.bl { bottom: 0; left: 0; border-bottom-width: 4px; border-left-width: 4px; border-bottom-left-radius: 12px; }
+        .scan-frame .corner.br { bottom: 0; right: 0; border-bottom-width: 4px; border-right-width: 4px; border-bottom-right-radius: 12px; }
+
+        .scan-line { position: absolute; top: 0; left: 10px; right: 10px; height: 3px; background: linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent); box-shadow: 0 0 12px rgba(16, 185, 129, 0.8), 0 0 4px rgba(16, 185, 129, 0.5); border-radius: 2px; animation: scanMove 1.8s ease-in-out infinite; }
+        @keyframes scanMove { 0% { top: 0; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+        .scan-mask { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+        .scan-mask .mask-part { position: absolute; background: rgba(0, 0, 0, 0.6); }
+        .scan-mask .mask-top { top: 0; left: 0; right: 0; height: calc(50% - 80px); }
+        .scan-mask .mask-bottom { bottom: 0; left: 0; right: 0; height: calc(50% - 80px); }
+        .scan-mask .mask-left { top: calc(50% - 80px); left: 0; width: calc(50% - 42.5vw); max-width: calc(50% - 200px); bottom: calc(50% - 80px); }
+        .scan-mask .mask-right { top: calc(50% - 80px); right: 0; width: calc(50% - 42.5vw); max-width: calc(50% - 200px); bottom: calc(50% - 80px); }
+
+        .scan-footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: rgba(0,0,0,0.85); color: #9ca3af; text-align: center; font-size: 13px; backdrop-filter: blur(10px); }
+        .scan-status { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: #fff; margin-bottom: 8px; }
+        .scan-status .dot { width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+        .scan-tools { display: flex; justify-content: center; gap: 24px; margin-top: 10px; }
+        .scan-tool-btn { background: rgba(255,255,255,0.1); border: none; color: white; padding: 8px 16px; border-radius: 20px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+        .scan-tool-btn:active { background: rgba(255,255,255,0.2); }
+
+        /* ===== UI 美化 ===== */
+        body { background: linear-gradient(180deg, #e0e7ff 0%, #eef2ff 200px, #f3f4f6 460px); background-attachment: fixed; min-height: 100vh; }
+        .page h1 { display: flex; align-items: center; gap: 8px; }
+        .save-btn { background: linear-gradient(135deg, #3b82f6, #2563eb); box-shadow: 0 4px 14px rgba(37,99,235,0.35); border-radius: 14px; }
+        .save-btn:active { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+        .save-btn.secondary { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 14px rgba(5,150,105,0.35); }
+        .save-btn.secondary:active { background: linear-gradient(135deg, #059669, #047857); }
+        .save-btn.warning { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 4px 14px rgba(217,119,6,0.35); }
+        .record-card { border: 1px solid #f1f5f9; box-shadow: 0 2px 8px rgba(15,23,42,0.06); transition: transform 0.15s, box-shadow 0.15s; }
+        .record-card:active { transform: scale(0.985); box-shadow: 0 1px 4px rgba(15,23,42,0.08); }
+        .tab-bar { box-shadow: 0 -4px 20px rgba(15,23,42,0.08); backdrop-filter: blur(10px); background: rgba(255,255,255,0.96); }
+        .tab-item { border-radius: 12px; margin: 0 4px; transition: all 0.2s; }
+        .tab-item.active { color: #2563eb; background: #eff6ff; font-weight: 600; }
+        .stat-box { border: 1px solid #f1f5f9; box-shadow: 0 2px 8px rgba(15,23,42,0.05); border-radius: 14px; }
+        .search-box { transition: border-color 0.2s, box-shadow 0.2s; }
+        .search-box:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .input-group input { transition: border-color 0.2s, box-shadow 0.2s; }
+        .input-group input:focus { box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+        .modal-content { box-shadow: 0 20px 60px rgba(15,23,42,0.25); border-radius: 18px; }
+        .toast { border-radius: 999px; box-shadow: 0 8px 24px rgba(15,23,42,0.3); font-weight: 500; }
+        .customer-card { border: 1px solid #f1f5f9; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+        .customer-group-card { border: 1px solid #f1f5f9; box-shadow: 0 2px 8px rgba(15,23,42,0.06); }
+        .camera-btn { transition: all 0.2s; }
+        .camera-btn:hover { border-color: #3b82f6; color: #3b82f6; background: #eff6ff; }
+        .scan-btn { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 2px 8px rgba(5,150,105,0.3); }
+        .brand-bar { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; margin-bottom: 16px; }
+        .brand-logo { height: 52px; width: auto; filter: drop-shadow(0 2px 6px rgba(15,23,42,0.2)); }
+        .brand-name { font-size: 19px; font-weight: 800; color: #1e293b; letter-spacing: 3px; }
+    </style>
+<base target="_blank">
+</head>
+<body class="bg-gray-50">
+
+    <!-- 录入页 -->
+    <div id="page-input" class="page active">
+        <h1 style="font-size: 20px; font-weight: 700; margin-bottom: 16px; color: #111827;">📦 入库登记</h1>
+
+        <div class="perm-tip prompt" id="permTip">
+            <div class="perm-dot"></div>
+            <span id="permTipText">首次扫码需授权摄像头，授权后同页面不再询问</span>
+            <button onclick="showPermHelp()" style="margin-left:auto; background:none; border:none; color:inherit; font-size:12px; text-decoration:underline; cursor:pointer;">如何解决？</button>
+        </div>
+
+        <div class="input-group">
+            <label>客户姓名 <span style="color:#9ca3af;font-weight:400;font-size:12px;">（点击选择已有客户）</span></label>
+            <div class="customer-select-wrap">
+                <div class="customer-trigger" id="customerTrigger" onclick="toggleCustomerDropdown()">
+                    <span class="placeholder" id="customerTriggerText">请选择或输入客户</span>
+                    <svg width="20" height="20" fill="none" stroke="#9ca3af" stroke-width="2" viewBox="0 0 24 24"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                </div>
+                <div class="customer-dropdown" id="customerDropdown">
+                    <div class="customer-dropdown-search">
+                        <input type="text" id="customerSearchInDropdown" placeholder="搜索客户姓名或会员编号..." oninput="renderCustomerDropdownList()">
+                    </div>
+                    <div class="customer-list" id="customerDropdownList"></div>
+                    <div class="customer-dropdown-footer">
+                        共 <span id="customerDropdownCount">0</span> 位客户 · 在「客户管理」中添加
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="customerName">
+            <input type="hidden" id="memberId">
+        </div>
+
+        <div class="input-group" id="selectedCustomerDisplay" style="display:none;">
+            <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 15px; font-weight: 700; color: #065f46;"><span id="displayCustomerName"></span></div>
+                    <div style="font-size: 13px; color: #059669; margin-top: 2px;">会员编号：<span id="displayMemberId"></span></div>
+                </div>
+                <button onclick="clearSelectedCustomer()" style="background: none; border: none; color: #059669; font-size: 13px; font-weight: 600; cursor: pointer; padding: 4px 8px;">清除</button>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>快递单号</label>
+            <div class="scan-input-wrap">
+                <input type="text" id="trackingNumber" placeholder="点击右侧扫码，或手动输入" autocomplete="off">
+                <button class="scan-btn" onclick="startBarcodeScan()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 7h2m0 0h3m-3 0V5m0 2v2m4-2h2m0 0h3m-3 0V5m0 2v2m4-2h2m0 0h3m-3 0V5m0 2v2M3 17h2m0 0h3m-3 0v-2m0 2v2m4-2h2m0 0h3m-3 0v-2m0 2v2m4-2h2m0 0h3m-3 0v-2m0 2v2"/></svg>
+                    扫码
+                </button>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>📷 快递单号照片</label>
+            <div class="camera-btn" onclick="document.getElementById('trackingPhotoInput').click()">
+                <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z"/><path d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z"/></svg>
+                <span style="font-size: 14px;">点击拍照 / 选择图片</span>
+            </div>
+            <input type="file" id="trackingPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleTrackingPhoto(this)">
+            <div id="trackingPhotoPreview" style="margin-top:8px;"></div>
+        </div>
+
+        <div class="input-group">
+            <label>📷 内件产品图 <span id="productCount" style="color:#9ca3af;font-weight:400;">(0张)</span></label>
+            <div class="photo-grid" id="productPhotosGrid">
+                <div class="camera-btn" style="aspect-ratio:1; justify-content:center;" onclick="document.getElementById('productPhotoInput').click()">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                </div>
+            </div>
+            <input type="file" id="productPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="handleProductPhoto(this)">
+        </div>
+
+        <div class="input-group">
+            <label>物品数量</label>
+            <input type="number" id="quantity" placeholder="请输入数量" min="1" inputmode="numeric">
+        </div>
+
+        <button class="save-btn" onclick="saveRecord()">💾 保存入库记录</button>
+    </div>
+
+    <!-- 列表页 -->
+    <div id="page-list" class="page">
+        <h1 style="font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #111827;">📋 入库记录</h1>
+
+        <div class="stats-bar">
+            <div class="stat-box">
+                <div class="stat-num" id="statTotal">0</div>
+                <div class="stat-label">总记录</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="statToday">0</div>
+                <div class="stat-label">今日</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-num" id="statInStock" style="color:#059669;">0</div>
+                <div class="stat-label">在库</div>
+            </div>
+        </div>
+
+        <div class="view-toggle" style="margin-bottom:10px;">
+            <button class="view-toggle-btn active" id="filterAll" onclick="setStatusFilter('all')">全部</button>
+            <button class="view-toggle-btn" id="filterIn" onclick="setStatusFilter('in')">📦 在库</button>
+            <button class="view-toggle-btn" id="filterOut" onclick="setStatusFilter('out')">✅ 已出库</button>
+        </div>
+
+        <div class="view-toggle">
+            <button class="view-toggle-btn active" id="viewCustomer" onclick="setListView('customer')">👥 客户视图</button>
+            <button class="view-toggle-btn" id="viewTime" onclick="setListView('time')">📅 时间视图</button>
+        </div>
+
+        <input type="text" class="search-box" id="searchInput" placeholder="🔍 搜索客户姓名、会员编号或快递单号" oninput="renderList()">
+
+        <div id="recordsList"></div>
+    </div>
+
+    <!-- 客户管理页 -->
+    <div id="page-customers" class="page">
+        <h1 style="font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #111827;">👥 客户管理</h1>
+
+        <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 10px;">添加新客户</div>
+            <div class="input-group" style="margin-bottom: 10px;">
+                <input type="text" id="newCustomerName" placeholder="客户姓名" style="margin-bottom: 8px;">
+                <input type="text" id="newMemberId" placeholder="会员编号">
+            </div>
+            <button class="save-btn secondary" onclick="addCustomer()" style="padding: 12px; font-size: 15px;">➕ 添加客户</button>
+        </div>
+
+        <div style="background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="font-size: 14px; font-weight: 600; color: #374151;">🔒 管理员密码</div>
+                <div style="font-size: 12px; color: #9ca3af; margin-top: 2px;">删除记录/客户需密码确认，默认 admin</div>
+            </div>
+            <button onclick="changeAdminPwd()" style="padding: 9px 16px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: 0 2px 8px rgba(217,119,6,0.3);">修改密码</button>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-size: 14px; font-weight: 600; color: #374151;">客户列表</div>
+            <div style="font-size: 12px; color: #9ca3af;">共 <span id="customerStatCount">0</span> 位</div>
+        </div>
+
+        <input type="text" class="search-box" id="customerSearchInput" placeholder="🔍 搜索客户姓名或会员编号" oninput="renderCustomerList()" style="margin-bottom: 12px;">
+
+        <div id="customerList"></div>
+    </div>
+
+    <!-- 出库页 -->
+    <div id="page-outbound" class="page">
+        <h1 style="font-size: 20px; font-weight: 700; margin-bottom: 12px; color: #111827;">📤 出库扫描</h1>
+
+        <div style="background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+            <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 10px;">扫描确认单条形码 / 快递单号</div>
+            <button class="save-btn" onclick="startBarcodeScan('outbound')" style="background:#059669; box-shadow:0 2px 8px rgba(5,150,105,0.3);">📷 扫码出库</button>
+            <div class="scan-input-wrap" style="margin-top: 10px;">
+                <input type="text" id="outboundManual" placeholder="或手动输入快递单号" autocomplete="off" style="padding: 12px 14px; border: 1.5px solid #d1d5db; border-radius: 10px; font-size: 16px;">
+                <button class="scan-btn" onclick="handleOutboundScan(document.getElementById('outboundManual').value.trim())">查询</button>
+            </div>
+        </div>
+
+        <div id="outboundResult"></div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 10px;">
+            <div style="font-size: 14px; font-weight: 600; color: #374151;">📦 今日已出库</div>
+            <div style="font-size: 12px; color: #9ca3af;"><span id="outboundTodayCount">0</span> 件</div>
+        </div>
+        <div id="outboundTodayList"></div>
+    </div>
+
+    <!-- 详情弹窗 -->
+    <div class="modal" id="detailModal" onclick="if(event.target===this)closeModal()">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:18px; font-weight:700;">📦 记录详情</h2>
+                <button onclick="closeModal()" style="background:none; border:none; font-size:22px; color:#9ca3af;">✕</button>
+            </div>
+            <div id="modalBody"></div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button onclick="deleteCurrentRecord()" style="flex:1; padding:12px; background:#fee2e2; color:#dc2626; border:none; border-radius:10px; font-weight:600;">🗑️ 删除</button>
+                <button onclick="reprintCurrentReceipt()" style="flex:1; padding:12px; background:#dbeafe; color:#1e40af; border:none; border-radius:10px; font-weight:600;">🖨️ 补打</button>
+                <button onclick="closeModal()" style="flex:1; padding:12px; background:#f3f4f6; color:#374151; border:none; border-radius:10px; font-weight:600;">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="customer-backdrop" id="customerBackdrop" onclick="closeCustomerDropdown()"></div>
+
+    <div class="scan-overlay" id="scanOverlay">
+        <div class="scan-header">
+            <span style="font-weight:600; font-size:16px;">📷 扫描条形码 / 二维码</span>
+            <button class="scan-close" onclick="stopBarcodeScan()">✕</button>
+        </div>
+        <div class="scan-body">
+            <div id="barcodeReader"></div>
+            <div class="scan-mask">
+                <div class="mask-part mask-top"></div>
+                <div class="mask-part mask-bottom"></div>
+                <div class="mask-part mask-left"></div>
+                <div class="mask-part mask-right"></div>
+            </div>
+            <div class="scan-frame">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <div class="scan-line"></div>
+            </div>
+        </div>
+        <div class="scan-footer">
+            <div class="scan-status" id="scanStatus">
+                <div class="dot"></div>
+                <span>正在启动...</span>
+            </div>
+            <div>将条形码 / 二维码对准框内，保持平稳</div>
+            <div class="scan-tools">
+                <button class="scan-tool-btn" onclick="toggleTorch()" id="torchBtn">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18"/></svg>
+                    手电筒
+                </button>
+                <button class="scan-tool-btn" onclick="switchCamera()">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                    切换镜头
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-bar">
+        <div class="tab-item active" onclick="switchTab('input', this)">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            <span>入库登记</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('list', this)">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V19.5a2.25 2.25 0 002.25 2.25h.75"/></svg>
+            <span>记录列表</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('outbound', this)">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8.25 9V5.25A2.25 2.25 0 0110.5 3h6a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0116.5 21h-6a2.25 2.25 0 01-2.25-2.25V15m-3 0l-3-3m0 0l3-3m-3 3H15"/></svg>
+            <span>出库</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('customers', this)">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+            <span>客户管理</span>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- 入库确认单弹窗 -->
+    <div class="modal" id="receiptModal" onclick="if(event.target===this)closeReceiptModal()">
+        <div class="modal-content" id="receiptContent">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:18px; font-weight:700;" id="receiptTitle">✅ 入库成功</h2>
+                <button onclick="closeReceiptModal()" style="background:none; border:none; font-size:22px; color:#9ca3af;">✕</button>
+            </div>
+            <div id="receiptBody"></div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button onclick="printReceipt()" style="flex:1; padding:12px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:600;">🖨️ 打印确认单</button>
+                <button onclick="closeReceiptModal()" style="flex:1; padding:12px; background:#f3f4f6; color:#374151; border:none; border-radius:10px; font-weight:600;">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 日期选择弹窗 -->
+    <div class="modal" id="dateModal" onclick="if(event.target===this)closeDateModal()">
+        <div class="modal-content">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                <h2 style="font-size:18px; font-weight:700;">📅 选择导出日期范围</h2>
+                <button onclick="closeDateModal()" style="background:none; border:none; font-size:22px; color:#9ca3af;">✕</button>
+            </div>
+            <div style="margin-bottom:16px;">
+                <div style="font-size:14px; color:#374151; font-weight:600; margin-bottom:8px;">开始日期</div>
+                <input type="date" id="exportStartDate" style="width:100%; padding:12px 14px; border:1.5px solid #d1d5db; border-radius:10px; font-size:16px;">
+            </div>
+            <div style="margin-bottom:20px;">
+                <div style="font-size:14px; color:#374151; font-weight:600; margin-bottom:8px;">结束日期</div>
+                <input type="date" id="exportEndDate" style="width:100%; padding:12px 14px; border:1.5px solid #d1d5db; border-radius:10px; font-size:16px;">
+            </div>
+            <div style="font-size:12px; color:#9ca3af; margin-bottom:16px; text-align:center;">
+                留空则导出该客户的全部记录
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button onclick="closeDateModal()" style="flex:1; padding:12px; background:#f3f4f6; color:#374151; border:none; border-radius:10px; font-weight:600;">取消</button>
+                <button onclick="confirmExport()" style="flex:1; padding:12px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:600;">📤 确认导出</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+
+        const DB_KEY = 'warehouse_records_v2';
+        const CUSTOMER_KEY = 'warehouse_customers_v1';
+        const ADMIN_PWD_KEY = 'warehouse_admin_pwd';
+        const LOGO_SRC = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAeAAAADoCAMAAAAALsd+AAADAFBMVEXd3NtaYl6RmpszUmjU3t5jmOQiUZtdZWUYNp8jTZ4jKzNZJSQeSJqdn5plWVyYJiiVmpkdMluZWlonN2onUqDVnqBgZmkeIyqs0OCZmJ3d3t0dMFbs6+vb27ZgYSoTOpmqtsrFZ21pmaGnr+cUbOcPO5xjcpMUcBY9QTseL1R6hI1XbZQmLDG5vcIA/wCizPsOKzQA//97ip68wcM7REkvRGVfmeF1AAAUM+Rod4qioXI1Tm+jkHsJOaNCRj13g4zcra3JfIOBhHzEwr3//wBxevH//3+DhHxITD3/AABIftN///+AfnmlPUJocYb/AP88QTvAvsS8wMC21655gHihaqFyhWyCfoCvustqAGprjsZyQzvAwrz/f3+9wb8+heJDP0j/qv9ujcN7gH9/g3sAAAD5+fkER6zn6OcBO5vW19bHyMe2t7WoqaeWl5WIiIZ5eXexBgcBPKIEBQr+/v4pKCaFgnxJSUZpaWYMUrUORJc2NjNVVlNUVVSpqakWFhV+fn6hoZ3e4N6+wL4JFjEPNnSSAwPg4d7Awb4KVsOeoJ0KJVTe4eFxe4tjY1wJKmvz8vC+wcB+gH1wAQHt6+t5go1QAQEFG0edoqUwVpORmagCDCVEQzwkIhxQVE01AgJTdKgAAP9yhqoqWagAAH+GfHZPVE42ZKlMZ5a8vbzZ1dGuEAulnJRRVE+CiIkYY8uRl5cxdtWFiogpRnQkSYlJS0kAVarn29vBBAdpWVZGa6axtLRRV1Aka8yxtbkAf3+lqqpEOzdPVE3W19AxOkxzd3CQlJAkHBhJTElzeHDMubf19PPGyclle6bZ2tgETcIOOZPoyMmztq3HyMhdYFw7Q0308/I/Pz9ZdJoyNTNUVaoAAFVPWWwAVVW2ubnn5eYAPXwCLIlCXItITEmxR0qxtbZMVk8bIipNhdl9gndna2dnZ2oPOZMaQXrr6emwJyySlY/a2NNVqlVJSka0dnfZ3OHR5/J1dnLq6enRlpjT1dRJTEZydnau//+2VFkMOqz1ZiykAAABAHRSTlNiISAaGPznZhhhpv6bZPP+pWD9Gh7+ndsN49TlqBIVWfz+Eg4Nn1gE96KcGmKcAf4NAeafnWANAg6aFe7+xqtQCv55YwEFAohSAf4Cif7gAaT+YiBYBhz9WwJe/rgCvP7+A5vSggD9/f39/f39/f39/f79/gL8/fz9/f38/AQD/gP+/f38/f79/f39/f39/vwx/f7+Mf3+/fz9/f7+/ZH+/gH9/QL9cP79B0/+/dDR/dD+jP380QP9/v7910/+kgLX/agS+m+Q/q5U/c6x/c39zf4wkv38kgT9zgMD/gOyEwT9/pD+cC3+/nhTCa7+b/54NANz/v0PjUj+slHPA/5nB1i9GQAAQKVJREFUeNrtnQmAFNW1sGcYZGdAVgEXgisx8VdfjMbkZXtJXl7y5+37+/f/r57qWtue3qa7Z6Zno9tZZQCZGRhkG8CIPp+ABCVBFIRINJIHogYVow8S45LEmLjE5D/n3qrqqu6q7rrd1TNDXo4yS89MdVV9dc4995xzz63ivJfVq38OsvoOIqvvWK3JHdoL5Ev8n/zIeDH78Y7V9Kfw1bvvvrt69bvv/spy/J+/C4efONE4ooNoB7tjtfEOL3GjIqHQS8YVGxe/2nxe2VNfnb07q++YuPpXnp9MldcHTHGPLfZ5Ld/kQvrxv8JN5Es9zMWh1KgA5p4p9QyP3R0KjX/AnvP1VWUBp7jZvBfHqaQCry79Sidy4x1wCDWMFwUB//dGfL7vcU0mwAIc3yx57yPYvi6ACjeFRkmBS7l2ScBH8O7xD3ivr00xRCbS0iLnfCHLitJCRC4kLS2K7PPdb9FgwScoylD+bxpi+k4xCWj+HZVX4RD3ks/Hy+QdWxTLCRQTyef7GTdhnANu4r7J+8RO2TuRcgA/Lvq6SzlOCxzomdEA/CYosFLiCR4e94BDlQHMWQC3lnYkUOHVFScc+vwxn08u9Qm86jwBXAZO44P20Q4warCEwnYDxQqMcfnXv7pEBSZX+sB5MAaXDFjKF2cNzvs9yXggnLHjTClUacAX+0p9wAng1LgHXKUBlhyJSU487QQv+5E8wBKz4FsKFbfRIZwl8vLvNWCiwZJngpe92OzEERNd8qGe4T6sLOB3wUK32DzBvz+A/8RbwFIu4JklA5bAzTr2WEWNNJkES0XMk/2wRAA/np3xj9tp0n94D/h7WbvaxP1M9PGlWgNws96spI2GSfAxtNAlG5jZ4x5wI/dFYdwCJtagkiocClX5Sr56OXN+AP4JAJYqCHhmGYDltM/3bgVVWLPQJZ6deH4A/nUlAKdMgIUyNFisaDSLhCkFuYyT+85/QsBtFg2+hPtma2mA28hHvgIZG2uYUiwH8MfPA8D/lQJuaysFQttK+F+TNnqIthwTXUU1GH+Mv9Bm5qf9iUifsJXwwsqV2UMvhU9CJW00RjlKty7nF+A2BAQU3IJtI2BzM2gIDC774uxlQzKDAMZfzWQy+Evwd39FYONbZjLaq/CpLUM/6y9hSg6P9vVQJcOUZQH+o3GfDyaABUm/ocgse3/zrymTWZkBNvDzjH2SlAD+9zzAbbm/p/15JlMs6Qo2+qUKqTBxsagJMYwJM+DLxz3gP0XADrc3owuibcu4oZKxA9xWcvUAzaqHKjcJlrSHj1ijle6sF6iBAfjD8Qb4hVQO4AeEYvUMGdFRYe0rOvIAl1cgAtGsygCuQgvdlvdIt5F/MKq0tWmOg/mRzujPOAU8/sfg4oCZiXgKmK+UmxW6GzLBUpvDE607FRaXwGpcxqWTNfemyc+fX4CFCk2FNRer9BPLjEMNfoG7sGNJitt0PgGG41XEzSIuVrlXOt40+AwA7riWO3CeABYELPUUKpJxgGrDY2U+eeMU8JKfegyYUqAwygcs0EPpnyjgYynPMw6h0Lu+cp/scarBOYD/lADO8ilOwNAuO0EeFsA/1wCTN6F/LgiWtxMKi1iR4jsPLDSJRY+fQMcmkCmbAHDNmSkPnjnz4At6oEP0OZDKUtDICK7EToOFsqQCbhYth6YWQxRKK/qHC/vOuItkXebvqMlJNjgALgNHngaXfUTPVZiWQzs/eAW8AvLwjz/A8669tvraebe87vfPmIoy46bqigH+I48B8967WaHHjrkyLKIJuGB9IMYV4E3clbvjIEG/P1hHBTT5QIUAm7KkIS8AC1jY4emtpMV2YrmnNZ4AP+1/GaTPH/T39S1ZC9Jew22tEOCP547BQvkq/K7HgKEcuvwrHT+Af8gtX9uO0hf0r6tfV9/c3LywRjfRfAU1mKx94j045sVe3kpaDl32WfHjB/ABrmb5woXTli/vCPoPLf8YSg03GoBDZQNubaUq/HMP7yV1sTwBPI7mwYTo037/1FwvmhdavQTMgxcd8ghwOt3d3c3ze711syCKtdgDBR5fgOc+v+n5uTVXPB30X5YPmCeSFtJlXzPoG29O4LoEnP+EtabTad4QdLPu9owwzTP83mkwEXCyZsybh/Oka/MAE8g8343S2mrLAH9ELk3Ym16MN76V/n4r/H5rK35qbbUDzPOt5JDk11rpb5L30d5We0/y54JxJmbBzh+Xcx7WYrl6zM6XMXgTN2XGjCuvhH8wUYrHByfF4w2D12JxayO3QIS7xxeX1jSBbzwJVgBpFPzoBJjv1jjqQLWXrJK2/ZKq8PtexaNDocd4X7eN8SFPHT59LmmPHw3eys3zw9S3Af4FYR4ME+JJkwancs9rgEXnSJ1WMQmz/FyVcpJuG8Au/7SAgOHnL/dIXaiL1U0tCPnQqkna9NSR73M0W7NrxAQJ/LgCXNO1pA/F7/f3dXWRGdOF3PUUsM+aDbICxooVKFWSBfcwKgGYJ7VZTR4p8GIf7/56uq2WKmtbxtUYXBMOI9S1ALhrIUyYQObSMXiBXChSp4fVBRbAF+cC9kBAhZ+6O+TNejusxfLklMaTk7V//1yQywDwjOcvMnvR+xPhYtIcYAP88Zx5sDeEfbxHaxzufopFgc8XwFrKAQBfhiHKLODqaKKYDDMC/k5lAHsTzSKxNcEbo8L/x3ipi946t6bm+uvPnJmCgA+csRjvR5OaRKN7DIkms9IbBcDdYwzYJ6R9wt0eLKinYWjPAN89/jR4Bve8pbCyprqxsbG6urG6saa6+mz12Rr4UH12//7JIIfxwxcDKtMdqQxgtNFV5deZh9BCC79ngGEaPHUGkUlxvz/++tMgMybN+FLBPwLgqRR9Eg4rvncYXCUz4EtYATv8LuT8QYXfL99GN2HXGU/4IuCZ4wPwXG5GXRxmvzgNhoQw/INoR93un2r1swcOXM1dDZ+upmAbyXe6XPql6sbDqg9vMbn52ifPAdPj0hafGtEc8cbNCl3yvjcu1njS4Lnc8i4qHfFgnZ9kg9vbu6r16rutBwo/868pPts77oDaBnBBxm5bu4o4w/6w7DwDzPmKmyM3D2V63ACGevclh8Iw/e3aBVocPxk9GY2CF1XDHXBn1BwAG6B9zoDBZ91LAOuqqd05+hobYMhEvn9rqFzA/44K7MsD6HRt4xlwtWlAvemmm2pqbpo6A6z07tpPoDy64Cz3Z3SInlejF+KlUraA1YKAKT/eQJaX8PdKIGr+g/ImntAeG10sy4kXfngLy5gC/qfly3+qf32qsfHSL11dswkBx+dteuGUudjjwj4/iUvDI+EAWMkqYVGB2/VihQADmX8vbxCmjf0Yz4i3cQs0d3AMAW/i5vb11ZhjGigEMF27EvoL+tKD3GUvB6dyU6iDxTloMMPtsAAOeQmYl3xCU1mEm4iF9up0xhTwVgQ8xTrKvkABz7NgB8B+/1UUsNMYXA7gid4B9mUE/q/LAZziPg8NK35fAE9BwFutlVkIuG6eeXkhAJ6KgOcVAPxdlc2ifbxSgIWM73vlZIWxcSMv8r9PGrzV+tokqsEmvYblLKDBUzZNefB5lAPjGrBP4oUflKHCIe59k4v1e6DBc82AN23amppENPjBeQ8++OCBrVu3btqEg/VU/8tTCo5bh5kBp0yF754CFstxs5q4SwSfZwo8loBxndlWNNFn5k45c+aF7A8mUScrK8/PmzIFTPRlU+ZNueoqXNRiMd86YIUVcKgiThauyPcJE0omnEIXS/R5CPivRxnwVqKZ2jdkDKbyF7f83a2p6nlTpqICx6dehmuTrgSZhPI0Bj8gekl+BsnEKR4ATlVkmoQqLPD/WCrgEHeJ6J2LRQiP0bY6X77llluuuOV3ZJ0ZFttBdiGOS5P8cbosSV+eZJUgEf+13A3lAfaZNfgSXLrioYiSuRMmq4WeKXiowKMPeBN32eszXgd5+mlElccuqJHVv7ODXFc3A/zqMgG/aDbRVZ4C5mUepsKlEf5S6EUPXSxyNlWhUQQMbpU/aBFSQhnUdTZo4ego8ZzJMwD+CaOJftESOvL0lqKb9R+lhStD3A/EMl2sveLOkX37njDv0jhx9ABfwb2eC9itNJi+bJgBR7K6Jg+UA/hPvAUsyL7FF5U0Cqe47/DlWWh++p0odx3cqec1Xwxx3nYPqSrEd57fNd6GhuxXODh3dPT1dfU11MHa0o6OuTkqHJqtlgwYtgzwFrBPbu2eWYoKw4pCiS/Txdo7Z9UKkFV3TY/RJ0W4eCL6GaMCeNOUp4uwxRXgyLJjy5a+LpISbl/XPumh9npN2rc0rMPPH8OCabPvyQiYf7iSgDMlull4JhDMLlN+ueI2EEB81z6Z7jBbdYmXSlxVSIEtYONYnNMQB9WEPD/AHNz+hg6y/sknjS/rn93YDquF28+dC7d3bY+3D4eHE5/IHbruZwT8iNVz9RYwr5Q2FQ7BRrdC+T70e4QwIAZLrfIUMecd4qpCSX2ycqGuoQOUc9061MVdG7sMkDt+vIt8hqXfzWuGzkG1M6mIPdSzObw+mdzX29u7b9e/7l7y2Wkf+2p17uyRVYMfCVUQsA/2y/pr9sKOJu4Hkk/yYE4uzsoinj6yl+xkfYdniKsKrOH/WHN9c/3ahu1LDKi7LjhEgIJehndc8OkwqeNIJg8pQ4digcBIBETtefJkhHyhqoO3D15h9+SHSgC8qXKAIZr1VBPz/WziZqfTkicmZA4lDIwB8RzBU8RVBdbwX7982rSF7XXbd7VT7Vyf2HXjyYXrCdPe5LMXfDqmRlREGRsaiup74Ko9G5M7YePenTt3Klsa4vMuPWAzvj3ACvhDI1jShPsHe63CWNjBPAp//mFfxqMoh0GYDsbkAp+xIg6FSuNdONAx9/q5S+JbBk8SkxuLxU73HEqCpo6ArsaeveB0YCeFGhiSTytDVDZv3Dj45OYnn9z40I7tdQCY5CEenDJl7gtb9ehJivsiK+DsPAa2tvMcMHBijiCBhRZ52auo6SKDMEUsmhGHQtoaqtCfFVgAZ4jVGFUVK+O4MN6wHaAS+6vGFiyJKSqRns0X7FgztKbnyY0bN+7YuHH79u1btmxpaGjI8bPzssKX4PxxpjKuAKdhKjyBUUFSoRd5QfLsFObPuu1bJsR30lnTMy8ZWhxavfqxAmzzXnIDeNODc2vO1MQbttSq6hqUjTsmDe54dsdDAHMwH6atTJ039TIQTEbMmIEF8p++asKElx5nBLwoCzhVAcCYcWBcSkryDJKHaY/jJsLE36JaXAXT4peqqi4+ht+8aUdSe+WlO96tonLHS/Qn+YAhJ7h164EHz8w988JWc0KwYQuKKQxdxyDxeNwSwfZ/6pJlzE6WFbDoOWBQxffZBmHw9dK87Ols7VVK+Fvfws8EMYYwjz1zcfZ3TB02Q2i4yXePrX636pljx7K/deziN1fjKYYsgDdtzbsISOzedOGVdcE61kClo8BBdn/02glcGYCbKgEY3azPsxC+LhT6b1DQ5e1JzFnxLQIY5DYTYpIRGZlTO30RdNgkY/J//zCrt5py67dqr2ZULn7zMY7cM7MG3/LlayFbf9nvpl525euv/zGYU3+d3yOyWcS7b7wKACvjS4OhDTDbViwQrBFcKTDTMzCfGuhvUc66oZZHaqffdRfGrDOw3vUxe7aCrMb2TSdSO0LedPGbE0lqRp8TTXn96T/2Y5o+J/7sJV0EHN/80QmP3T9qJpp3mzRkW+6Pi/qLuFi8AGo3/a59PLOr9S2NMdHi6dOB7apVELK+bdUcn+8OwrYKbLLxPuLOOfgE3EV/D+TOO2tb8F0vXg0hhyqjsbeFLO2tUgkBwD+brTABTvOLLi8VsODazfJVsfjRTU/hnxQ8Ir3hd4WfYDjdJ+7RBmKTv4Vs6Wv/AnpZ9YxFb4l264+ANtdagc9FDB6/Y2++pGsw1jKzJwXZpaEuPrRokayyAi5Zg906uoJk3iDRxYozvmieYc4qLTjFcrHH39LgZhFrZhtM9hyTRRIgkTz9TgPtihWWX1+x4s47D47wx978VVV22UKFADdYZZciDzACFvIA8yyDK0M0K8SwBVbRIx9fpc9qWcz03lm5bDV5a/4T2mH2SqrONh+teao1XXymKutkLfEHvUJs4lmnZxQ76HLT9nOK3DmKgF3HIqA2y339bCj0lAvbQL3i225bdddBkX26lAds1k744ROL5mijsjParBbLx0yAl3fUlcrXxBOB+mm6n2SIaRbKkOb69UqLUh7gB5gAu1VhrM1yG5B24WJpymjkEHaWQfieezSVnDOHVIAYo/JtRQDP8WUBw5LArjqtb517wjTjjwqaBVpvAdrcPIyZioMkRbEP4tkjiiKPJmBBdl2b5bqHUSr0vqtq2V/eliUcKyn3QAHfdo/J4XLDVlN53rd4ZpURdJ7X7qflcwXLN6h2Ys7fjicAPTJMeJLsRABlTQ8Jc/b09GDUegcmJ5gB3186YF4S3Ndmues/i0tGXZVyUBWmUYu7ojxrmYemvvfcVpKseBXe8JGrTIGOaV15QA3ltKWJ+nkEFfQgKiim+AOYZ1JVZacCPHueBaIPPUSSEPpB/W8onaMM2LUKQ4M+d7VZIe57LqtlTaCg7EpkDnlQwICYnfKs+XhJn1pWZVq2fc6vj55YkpPPE/XTsLf7YrFALKLqQpT02Wef3QH5iN2f3ql2mGPQ5kCWIrMDbs0BzDN40bzPbU4PRusX3QzCIfcLktKzTBp15xHXsWv++KzcEZhN3vrCYjhK4N5l5lDlJ6fl4iTaaYyeaHEjWZ5P/jlUb+xAoIOTJllxdkQCfqdIpTLE7mQJ9/+qVMCgaW2SazdLdGOjm8iSUWZbiwPxiKuhAidBqywKzCivzscbJB06+bmbQ9lkQw234eAwqCdW4eDwOQKmlpRoqIq6GcfQZ59Fgws8B6nF7YqofnuXuyPS4wDYvxtMdCc74JI1WJBlXnEdzUrPdKHCNzQtdl3uvneWZWZa2NXiRWB7kAamrL4UA+K3PjL/OLnwWPPJq05Zkg1T/lztAYdoMxEcPjHtG1+i9rxhb247ImrcHmNBwCU4WcL9E42aLFbAUhSL6tyuBn+xeLgSSjnAQpfgLhV0tTDoeEQPKJtdZTIA3+MW7hfm0+OLgebwvVeZ0oXQuu7Kp8lOV8RTJjkHDE7X+bscYXWMOAPud/iJfxcCbmEGHDItJ/ioyHczzIObRfczJV6cUNTNwiWj7qtlLSoMiG1cLdRbmixYZRO+cOlhvfUqaK6+PEKONjcfWjCB1LEZsejfBW1Tg/G+SI8TxpE1joAD4wawUH/CvZsl8LOLAU5xE5kWJP0yJ0hsdrV4M1vHyFQxwsD2vePZGLUcCDeHE49Wc3S0MQG2n/12VQBwJzPgD0sEDDtlhJtb3cYrYXL7cLE2/yEGF8tGhdFML6IgFu3LTwTZA3Ycg61swRb8w8Hm5nOJPRuqOU67jqKA+yLOGEsFrJQwBt9QKuBkfcDX4r5jR7GpcIh1yWiOCiPhObIecyyULSjsYd0DNnl+2uRrqLEEFKwnEtFHJ1dznOEsZgHbwMUPlTDRpQDmzE6WwPC3yWizr010O2L7ioQr6SSY5exzVZik8vRE0IqSglRv/fYL8/ea2fYmhpubw7AO4d4N+5FsYyq3bBbywXXsGtzDDDhYIuCcMZgJcKBe9rl2s3yLCzdGa2LvyvHLFflpgFLRYgTyI4ZRhrpdJXYwHD4STkQR7rbqFG26n18X7Qy4EEb2n3gB+AGxW2Aw0VG1OeqT0q7drJmFAMOS0cU+ga1aNk+Fy5EV7xn+WSSZGD6CbJNJYDu5mp524w22Kxu8Buyk9XWDJQAWrU4Wi4mG9btRJVYvuHazxMJLSSFRmPaxFv390kO+v6R3JJkIH6F6G90DiktbiP5TY8px6YrtGFwG4IDHgCeabjGTBotCUlXBzXJvo4VUARXG5sFpBheLF57Y+UvvNHjFb+FuQGGHkEC2e/YcfXs/tcepxsZUwbVJjl50YT11ShOjBjfYSd2ny9XgEgAr0bDPddIQbXRTARfrKfeVsCJUxBF3yjPAs47L/zL9zlqfT4ku2H9WG2sd2eYCDjICfsMBcEPd7s+odbeba3beIBU7mKE6tNMDDW5lBKzWS24XevJthYrvQtdVMfSWlafnBZUZ5J5Zb+UrMDniqid84m/I+dx8qjHlbnVhiYDtdBQUeNdnIl0055iXcoyWpMH3WQELjICVRNJ1NCvD885+NGlNyeBiHYcKKnbA97z16m/nz9+b75xpJbQwEEPErTHFsnzUPWBTfWRkzaScqjotjdz8mYg1iQxri8HXg4xjjzomgAPNvOh+Kuy4Di2Fk2DG9Sr8E7NWuCf7DUgXHNeWn7zn+HdzCGCOFbDjGGyYW93iEpxrz0VG7KoCgGhiZ+RgghDFmp0eIrDMFFYMD+4aZcAZAlgJqwxuluNeO1gty6cZfWhxhRtrPAuCjvP3WoyDk2/2rdveKwmwTZ0k0oRYdAeOofogmgUKetqsV+5Ahw5StoNIoSjgM6oKKUdk+hDWA5jmwW+UAli87yIT4J+xAH5CSCoD9w/EEq7dLJgKO3W+C4UudqXA/DtQzKmndnQFXvHWR9577735X/gIym+JzIGv5s+ff/z4XhuzP9/mwaDL0n4LbvQCRsDQccXaGEm3t/XNkREbHcVSrGgkkkQV/QejxqMHS3agxOP0Z9S4fQ65bldpgD8sFbAEgOXZ9yvhTNp9xuGbjoPw4kLlYNBzR1Z6YqdPn67tGforPqdC8guMi4ntLftbsz6CxVbKBkbAUJFF21zlWdxhFdJPw8N0GN2HhTvU5PZs7oGSHa0sAGp2LGb9M06Z4uBudsB8RrSYaAAsMgKePZCMMbhZi+0Bh0Krfbw9VzWWjB46dOjk6R2bb1y69L90L86NU756nNGyz19lBfuNV38L2q7pupT8LjPgj+XoJ63dOR2LRWAUJWWvzxKa2U4NhbJJngKWrCZ6JivggUX3K2rCtZvFZ3z2+6HhRt+82YGTlJFkNBE+136ua9fgxs0XXABsNem2YJr1no9VvmEpBZljfrAENbogxNiEpZG7ibREqsVBFCteSQEW8BzcBVGpuMM0qed8AHxCGRgaUuSE4rorXcb3ph3g1JcnHCNrrInCHgyfw35SQPahjT/+8QVmQcrd75AjTUefaMWcvcx8LQqMq8609d0kBH2ydpnr1eoG4BlYHgkyyTR64iqHJY4VkqMJeGJZgAcGhuRAtOhqItw9UJSkDGzFcon1Bm7adMMVU74CjbHkWDR8BFzLde1Ldg1O2v5vFO2PNcky3rxxpZFmeFUsq7ESJpAwahKAUeBgIjwcXn9iQbX7bgSGk/U6Xfqdh+SQY1z5jRKSDV5o8E9WlgB4QEk4PhfI9QkJJSPiPrHwkrEObdMVz0MPKPr1VT2wq30XkN2+/d+s8rWvZfF+7aHBHYuW4kGOQ5DjrY8cLwGv7wmzAsMSFJ+q1aRH9yw4XM0xdJswAF/pEFcuDXBPJQFLTIBrETCoMLhZkg1ZHSzdPFCQhnpAU6K/CZ15ftnzD+p9SzbNu3be1EkbB+Nbvm0VAzHi/fHXYETb1SNrZ5ee89v5x/lyO6NhABr0N7w+uucoJgURbSjF3AjtAPe6A+AlBUKVowc4u+/5L9gAy2KMAIY1yeFuUd9aUKBgRVEDi35wIHkShlXNzbzXaMl6BXaAmtSwpeF2Iv+aFRPg/3nBv317sOPQodohUzkeX3qTJbMC4xoUKZGcXP332ik1pkrodHfAUYMRsH1LrDdGKeEPgP/vJ40TbuQOlwR4ANwsCGIg2KXAVXjnnW5BXCorgVrwg9s1rmAEcdncSOSjn5w69VOw/fUkEvO53Sxmvhrh7fG+riWnh2xrLXlxaVkKvAL4ionkBHLtpxpTJbYydAQMddGBDvuoxRsFdDvgrQb/Zlk5gGWZAAY3C7W1G8JMEsQjQGHb9XkhneX3QhBuZwv89tDmh7aQUN7tNpIFDGi/vSWOvXhr1b/ic7ae9vGtotyTTMjiQDkKjBUc7xyMTuDmpspsRvrHuYn+PughjFevBojdWreuvX0tbAjdgazJte+CKDVzTZYGeA0j4MtNgF9zA5iMrrKsUMAgA7JyUgJLfDqaOGeKsMJ0HxbqjKhKC/7SEIRXt2st377//e9rSHNQ6/q7HdhCA/RDar53Dm8dToSJSIJcTm9SqODgo9HPlbovjD3geEdXezZxoAYSwwuxh3Cz9hoh3eGPOwPeNeI14BtcAsbhNINkZbTEQitoLJpoSjjW3qxjJWE5WO0aUXbuxJ8thcU6241VrkhW59tgo8Hf3jIJnv916xb+r4Dtshhe2ZvEEsd7k7FkCYCfMEoEyAQ4mfgcbLnuGeB4hzYghbV8kKJCfLK3F5YYRqProalwOKyxDkdiXX1+O5IQHKnzErBQFLDuNqHnRGc6UJ0OA2wsmUgiWyJKFLiCwvYiV9RYCVQWwG7fkpMLrfs+fHV7g615hi0pgC3cn4Qq7XXcJCATrn2tekIqNeFxkR1w7SrzBDgWdp1YcAE43rWOqG0U0wjaUlGtvazaTxbsA+wTwBpAr4/EgPS69rVrCWaTI7ZrpCfo0MOjRMDZyFIjN9kATPzflRQrcO0mDvFSdIjBcdINTpJa6IHOgU4lAqlDJLsUwT5kqCzlaXIlv4+v1Bk2WoMLbKltaw7HWgqNEi2C+tyv6On+ABx0VgW+U88/zYLUZGB4QejmkAeAySaEfeTRjPZmFwKr1CfKkTWEdCQQvYYoNO6/AVY7btZgvEUNRqeADr2Nx8kSAMt5gFFfZWKHib7ivEeycsXFzeARgw1S5awMYD/rh7Iaa23ylGNtLHwbJr3RRXySI4l9yhN8kSWrQvQDonWp1EyRGbChwDgBVsIQdv4zDzq+hwAwGudw9ESgP6ItDYYm34sW6ZSH9JbuJhkJYAAN1XmYUoYtHqAmaxcYb+z6kN9lpz5ZEuDarJNBAFOyhLOiwikcynLVB1hMTFOFlYhf/KRJY20y3/a9gzQfC4wyKu6RcDSpuliLKostC+keBLCRLvMYnFVgaJEnDYMDneI8AHzzpDjst5EAy4x3BR70nh2Dg7v1xaTweTfEqSHZ27N5s2IVtN0xgplQbm/v84MGW9PH50iUDbMZAeZpEoylwo3Zh/hS7tewdkQaUAOnzfpKuUbRaRghXIlXLGsa2+C4fZdjz2uqv1mjDHZNlVytKkwr6d5p3M1ciYB1BcYJkhA+eFU5A7DZRC9ZB3hBeYHu5h2DlCvp76xtMRn06wKsf7Sjp0cdIjoNQ7RGGZV5Pbnn68FaQnL05KFdu3adhqcCu7GQhiwPbT/tHjDaXQk9YpE3rWw4xS0IJMOmCSztSICVB9j9hYIlphjc4i3FGis68aWKm4WbhEHXbWBKktoSWjagBMC6ApMJUiJRLt8s4GnN0UBE6RzY/KN4bsfZXNFAE86LhnSrjZ8QMgyEvap6+iRs9DBpu8X64XpyN5EsbQ4LQ6z4DrmrQm2TyYve1lwfTpykRXwBwpUMIRrZG1Fl3fSidxZk6+/raicP0PrkiRi8hXtKPLhY04zA+d+yAtYUGEvcfdHyHGgz4BT3aG9AkYd27C5GN5fzbmjyv8Y8OqP7pcJaxuHhxKE4cUjdRrKyYGGEBZe4G0L//TE0xHtMa5OWVcc0D5/Yjp2ybothlC2msm5a9pEwAMAdDh/EuQQ+PRDIdp/ygxEl+TYYmtI0WFNgMkHqPbIglOK8Ady46VMq4PW/rFnmQpT9QX8u5jgqM/TeaMn6YIF968MLwbcGt8vE2DYWDWBxEgtcV4rCO93viDjTAbBGtCV8lOZ0Diz7Ony6Fvr0UK74OFgnPCUgNftawHYtVVxi9+mkqrMTWnv5GHYzlRN6ZTU7YKrA2KTONzL86ETOK8A13IwnEa9ZN+1UNu+HptfigzueHIJwgq7MI4HkNTCHWteOrvX3rWuTFJPG0uBEd3e3sBRcp1oTWJjpXEM8s8PLrn3+zFaan/3nAToy07BiQ9k9U/WZkj7iJg5i16gAjPz4xHaiyKr77VXSLa2Bv8zmNhkBUwVeMQtCKErzntL3ns8F/EPuiklEe4nu+k2iUTSPvVn/S+vV4tdcMfwWIG8eGhggiCMjgV5YBofRkLV98RzAZCIL8Yl3SFIWgv9RIzRh+E60BheK5rQtBz75z/8HCmL0gHG5XXE1sFl3CgI8MHOGFoyqTDwqUZUVArhTFRh2FBejZ/WRkxnw9FX6BEk+smdZ2QOwBnjTD7mpT+eAzQFpda+okbY+A9pjoKlyz9AA2OsIFOwFTkQJ43pU5Nt1wDJEoUhWZ00WLIlNkKwOgO0nnlMnscPS0n+86PKrfjdj0haMUXjU07pBm+fqcNEqnzhhwCUrSRXsu6hgbz4fw0aI6nOhUjW4ZRVZoAITJDEcvcoLvggYZuSXmZHmEc4BbPC0Krnf2CQ8SCA/C/Z6pxLBAOeJJE3htHf4P637Yz2nD50zTWKvAbAniMaSLi0tlCywXQp+saGx3rUrt2huGL0p9MkVc3W8yEuqTNt6SQyN14TkK9zVpQHmp0OaYcU35uMEOPFdT/gC4K3cFVdqXbGsYHOA61Tp52COJfdbN3sglOODTy4CPaaeNaRfUY9pqFI5RMjinojXaEtc+rXomY6WTni2TKqr87wRPQk8o7OMgVnYKhUnW+Auy2LuKiVe7aSPI5uL9fcGGkbA6vQ50DXHRybAk73hy1Vt4q543QarjbHOVdhcQ25CnHXBdj+0hs6UkTHYahqqHEpSY3za0FlloJPEKCCoSOc7cX9lNpBooFYZE0JHEtHawBoMrBt2OWeVkkIJSwx7EQuxaea9cNk0WP8cTSwo33/WNdjMtwDjoN/sU9n/lGA2A6aK/KMePdjVG63VTDSJOxHp7GyhoSctDVDBnUHMzjJoLhSAY5xEcVq1JKaFAALud+9igekB3TtVshdNLMdQAgIcnGcbRF/p4F75nSkGC2h60J+nyOhcYzAEU45r9BD2TkzHGmTBFFd4yxcL3INJrVm5UmhJmoBuFgqbi3VRVvlYAfO8EgCnMzqZ8w7wZS/7LZFm0+zHhp4er7AnHPQ7RkgMxhrfAS3Ds2VSnP5JJffy0eNT9dkxFzVXLhZehh2+ITbP5mJFXzENnk1YQMZgorsFbEMYfY3zEPBy02yI/NMI2k6Z6jBxhjnBuNOsyhogqcth3KPnHHt27477K79NkwGX1GAsxKRBhATNi8OlK0l98NsR9yuCIVGYMKf3UoyABai/ih49y3kJ+MIOU+gRCcHKUYg85QOE7+s6tORuByFs43UbgLEg06rD5KmJ76A2evDlSpPV/Kk6f99aowDp3g2T//ZxWW0TXGcqfS0qg4UmLpa1JQCbk7WXj8GyFI/8Zw3w15d3BI1QBSDA21HfhyNonnrG/bCaFKqyhinhAg63Ze9DTY/px5c7FGzD8qMK023Q4BKrPIyaG6tdsJ9c8YQ97u+46BMCaoYhzyAlXjPjYTXRe3k15JX7bDhZ85b462gCAe1zHz7szUA4n1+wrr0+SuaMyeZ1dcVcs2DONltBbXtZv4qAB4OV1ty4CW5A/c2vq0kyubHxp9y2pOs+G9ASSw3wDBY68FzI2jeNTYPT/H0e8+WqYG0/mGR9DK5beyQZq+1N1PvzVbjOX59cQ1NFMXwC/EyA60YHMHGWDc1dT/N99/+khvSTogs/JiQyrlshCT5ZZXCxRK0Wy7IUkgnw7Bs4jwFDomF5V50eqKjr2ofx45HE2nzA8b5ERAOsRPsKqnDQnHG0bAAOgFsqBVhzqNrrtbwBVO8Qp/1neKuzihG6JuB6z0oelditCsttSvgiWCRSOuBW0GDPAcN2K0u6qEsE/zoCI2QScc6fp6LxvqSiAVYjHdTpDtrT1eDrAS7LFu8VAqzNc6m3fA0mLEipL/jL91tX4zVy+xNpt4tfWBaQCYqQnJa3j7QoSGwm2nvAW7ma9g49LuFfExkZGQlEoi/nAQ6+fNoArHTofG2iWsHsng+m6ZLxBi3eO1lGEAMSUgCXVv1qQSplZiplvemhsOKTvN1gWotihV+zesDsgGdXQoOhA0u7X7//O6A6XI0otS/bDLIdOt+WHf5s5sEJsBGytoanPQechYuai1kLpKtPdXm1Oidt3shNS7raepCNL8yRclwsuhO8IPFjbaKx5K49rg2R/s07I5FIy2lb6ztI4o3Kop4Of4EhOGitCNC/0ky3p4BhzPVrhRg45vaTKEbEFMcQ3lFzL7mRqw5LLht2MJjoDESxtuVMYakG8wyBjkoBnrewS5uv+uObYd1Ojy2/4MuDxGvZ8bK9Z2UKR2t/DwXV1M8yfqnDM8DgUVG42Dj5hLbShthl3pzUDdi0y1kYKN4XjS5w4hkWqirh3CJ1Vg2uGOAfcnPb+3QvyL97x+6XHSORgz8adMo5mTPHhmcW1wZhbwFn44/hBBYKROjiKVBdwbzEHlag2QA+xW1LOLcI58nfWcUw1nyhMHTvJ3InsQh4LwNgcLJCldHgraZhOOh/2cUct+CPzb63tf4y2NFTNmDdLmtRDG3QXWNJ6upoxG7VpqfoBHCzaF80XUd595LTmEd7RWqT8oswEHCaDXCFTDRuTakPw8HCif/iWcWgTd2e7nGVr8FxEqPSohgBsvgx1y6baIjdil1Ls79MwqpjNq65hDUTrr0CC6j6nwvlt077gcBn+MJOnHZE0gSmYhqMlbPtXXWmnINbfIWKP8xZCD30UY4Gm+1yL61JVyO47MBGdXXArUoNl+9mvRaWcWzkvRIophSS2/KyBASwmH2fYm9YScBopPvqihjfAqniQhKPmwGXnGzw6+WP+2IBfa2MqoitTnAp4M5ldiq88ATonGeAsQtBSyJ/b9oQ9zcI2LWkW2+snAZz86bRYdhTwMFgjgNWImBddWl0mZQAWVXX4ZaJ3ffb3DJY4BSG1RTeAQYXK/YJu+6WAFhwzzfdWkETjUZ6rRvATHANFyteBmCS06WL/ALG2mRTtU2BeybwdoBD3N3hCGwI7Rlg6KWWeC0/j0v2SWMAzLfeyFUOMBrprjoPAOujdNCaVioNMFXdI7ASrDeg6kXVptlQkXtmDxijWVEB3CyPALfK+VEsAzCDhebT91UQMPQznLbOX1fKIFvIOucUZ1HALpMNJO9HVRdmuvfNnjlzwsyfZdsWubhnjoAnEzfLOxcrepNNIQYzYL6igDlu2cJ2f7k6HMxLOlgBr3EJOO5fa6w6AJ297/9Va+sFZrPMXB0Aw71/LgbdXTwiLIlKwq7VQoibKDDMxaDrU0XHYH0Y9kRxLaSDRmW83x1g7DFGAxm0gPq+vyXpVZCJjatdT29AI7odAIOblYBWld7wpVEs2xbiP2cBnK44YDpX8giw37rSVJsLd5CKjt3BInRhwdI12VZOCuwYqaXsU9xjvC/rmXYXuWG8A2CIZiVUr1RYEiVo2tDoCDg9bkw0nBLMlYJl4Q3mq7CflmmSn+iAnYoqIU7V3rxQnw5pfBddblRkQJEEDGvYwy4Ns4rW7tY0/NcKX5vvVLc+rWx1AgxyNMlrKpwu/IikdXFSYMnexeK4r1DArem0OxdrFABzNZBXKpNv7tzXHzTqdRAw+sFxe8Dxrnaa1s3SJaEM0y5BuPso9mdppaJ/JoLAiQBilNYCgBu57yaom5Xll2618CRH5LNHx5ds59pSfqJQP9nHBNJNRhDS2ql2a0fTTxA+6JPgdNpX8TEYKooubO8IeqLA5lfjel29vwMnOmv8NiXvGGM2CuX0QBUNZZi25U5xj4v0lhG++Ak/WEBr96+1taAGQ20WGFfUQAovvRePBU3BjYMI+ZJ9g6ylgMLJsH03q1AWsAsZFcAwDJdjpHPWiQeD1qAHHPgQWdiQB5hY5mEjlKFouksdZuFxM+DZortbRvjw/KL/zTmo8OT10D+ad3v782XvXnyQwELzsU847ifNABi2g0LAoUoDhqxDyTMlZ8DaCiQ/WSC8w7ocCRfEIN0TgZ5sc0wjDAlxogVmE/24yHDLeN8jl3Ock5uloJsllCXdYAVEuyhWFnA3G+AKazBugla6Cpta8QSDltyU9k3faezQMWjCq/nMoLsjJstsjlT5pJl2JtotYKfdgBu5R8HNygjlisSrz71EOhc6AG4dVxpMKrTW+ssFbKJsCkr76/piqJ9xnS9WMTc3m33mSCDbDpK6HrxPnlAO4M87Av5uAmqzyuULnnjSaaM5GugQxhngrVi/E/SEsGXSRIbgrgD259B2YoIws1ahrrvMgRGjkYI2OILj6lNM+wTpXnT5GkyiWT5RLFuBJYhieQVY/dVoaHA5flYwz0qbANf5DyHHHUGa3QW61yRrszOiEcW0L4rhKgHgCSUD9hUAjNEsoVwVhg3zzE0bygY8Giaa+Fl1/vKHYUu7JeJW9UWxqnULKm871mWY6Ab0qptcvxZmOqbHmh3w3zhdO7pZkXJVuC3NOzdMoWOwII4zwLhVJbMKW0Baa6Gzr8e7YghzVxedEmn1csSt0rO72Jw/F/CnLMt9WAF/yDmr8F+u59NSmQqsJELOO0pf8hQj4NEx0RDPKjnpkNP60PwymGVEGmtvDyf0gVdzmrN08+6GdTfkJuJkiQyALy8AuBrKK8tS4Yzgg6YNN3OFAee8hSgI9tBHDTAkHerZkw7B/DJK65I0YqEBKLYvMpnm7MArijZ32yf92hQmwv2DAbDohQajmwWLhXEHNO2A5LNoCMVAfyoK+VhEsQ12JXNuOQhjsAbYelzR9kJHU4O5y6GKNlhiHiloWziNyxvaY9rqA016DNOs0bW7dJ9y2AawduuFLAsDiFlVfL6Hnb1o4mZlfCKrZE8VFDj2nDMRGIMNwA6Hsp4tr04cJcDc3GYmFc7GNCxogzp4EtCAnXjMOz5km8vxBZ5u3qfaAi7CQFObwoDRzQroKlyKZHx8oZ50Ie7ziwsDtp70KGrwD5mmSpbS9mD+j7RMQjiZBWzymoWCDzbPq6ZAllvAxi0rCBhkw3qeL50vulgFdC7E3coKODRKgHGq5F6FTXxtmpnSiuYjdMePnHAVzwtOZlCzwT4hZi44xkXz3gEmAenSVbiN90EUK1XARP8dABbHowazRTtss4RGBwd/1zpLNLKw8uZdtFgbyumK4KUGc59NwuFWlsR3JXThSUwoCLgJAWfGI2B2FTYNukbfNC3anIjqa8RwdxZdeV2ZLohjbeDyALu9ZTDGP3x5oeu/mjucEEtVYanVpz5XiAfUXyPgNpcGfzRNtCkxXMJ8WEv+6njNyqsVvZJNJDOuAAcmczW5gNsyHgH+C27icwFYeSK1ta0EIXoJn1bip6J84ejRgm1/NcCSO8JtowuYIyocLK1Mmhpn3AkR8AZMtjmj4cUdB9symYyYyRSzWicsRpAClgCH2NaWASxiQftaDDDg2RDFqhtN2tra9M+IHI9PuOtvk8FzFjPwgK1sgxmelCi4bwY4WU8RwHiktjaRfFhJDgmv4HHNVy+NTj7YosLxYGmV0Tgxwp0Qh69JGtsgYkhD6+Jq3M6MLk5KAvfwXstDDYAzvm7YoKWNCtw8RIH6l3+YDAL+sOANQDdL9gmSk7RZRf+e/Iz3xY4WPDi0rSOA6YOD/+tHNY6Mjw+e90rywIyqk/VD0n2nRPUleJujMRNeOvTyDveyjT7jK9vM+tgG91DdwG21jME/k5x4aDeMoCaCRrSYkwVuVq8vq8IMAmP3yc8VbCwJJvqposfOPjGjDJhk/kuKSGt41xt4ewIRDW+hi22jH3Q9AfsrQZ/I2Gs5zeOcARuHMdTMBWDM+4uFj+ggvG9kSaiIBk8AwG3un5j0faM5BqMj7a8rBS+6Vtec0PEanpXArCcwC07+wDLKFQdsvWVFAV/HPZYgbha7AvPRIjsrwDTpKYZDU8DcKGowN62LRYVp/ojgXd8b0Poe6nj5UpQk7VOOWi+ZDXDGhYlOgZuVhj1OGU8NTJKcuKhw71A4dTbAe2/kRhMwNt9hUWHS9IzghXlRxMCr2WZZZgcMFjpHSSAfzAAYQk0uANNoFtvpyXBusIFOinMB2OWRITIv/Dk3uhrMTWPLGkLUCiZG5mlvRtsDWJbZAeMV526QDF40A2CwHQ8vK34XYBULniLLqeG5JT5XpHc3O+AbR9dEkyaHDIMvBiVh3qvjjdFNOwVJtojkkrUMnY7UR3OuGAHzTIB/UewekPJK6MKgn56LE5PJuX26GA0CuNsRsJwP+DejrcHz3M+UoL8RxJyTAb1xFTXOfC5eC+rCtxGt4OEcJWnivigzDJhuAHMQzYqhorFIpriLRYQAll3dAvmJMQCMbpY79cWZURhjzv0Ub0DK2maXV5irJRgpynVjmrg/lV2bU9kdYIhmQXml2MkCGKq1E8V3fw1x7/vecf3kgGkabcA/dLvMIe5vJ3GNnoDGFxvJAQiF4Z5pm0NLsn5HfDaRIh1w4QNR+4e3jHcBGFvfqVkb7UIU6mIVla8AYPfHHQPA0AFvoQs3Kx7vokHn/v41/SQoKZD2jbA9UukCx7BxYzQT7fqW8Q+72sPks5j3V1jOTXQsd8/RYBbA4qgDvh5sdLyodYapEQ6+AUIYBl8Nr1IGXnkn2ACb7oAVAQxuVhjcrBa3J6ygcZnmwuFNce9DgweXtr8TANeONmBcx1LERtfBVjzDUbqdWABd54yGN3u7WkpRYPtIURP3ExbA3S41OETcLNj71M2pDig4R3LjYn2ZAFbc2n1eXDDqJhq6/hW00XVona/R8OI2rbgHBdwqRdvfuSVPXF5tC8xDwMUK2QBubXOpEy2wStGNF01XsfhE3N62+Pl1knMLX+RiB5wQBQxbq8I+4qZbYPsu0P1LnO35tjrFfgHcLMflwtg+nFrn/v4eyhcHXw2vtnm2STr1L1qs15p/udCwFAsWbTZZRcCC5B5wtyvAmpvVQnenLvwcDpD9ZhNH3dzeu7nvoaeZvQGdhuQ+8C0tYwP4hUI2mqhvFFo198BOrf2gvhjYEBU26TSJpvD4JKACX+4EWOm0cpTpc6I9Mtpr5JZ1P/ILd3fis5D3l6yn1GI5onZUPDeYv4Vd7cBOABe8duPtUB0E8fFRB8xxVyzsc9qLFNW3NhDpX0P1F6dGgqwq5Yiu5aK9AuuArc8F0Qx6u1rMr8Ite+cRV2MwulmQ9y/w7GUPii5W8jlXMcVQEcBWAcAPcF8fbcDXcxfaA9bUt6cf6uh6DOuslsfXEKjFslPgLGCXt0xwq8G4ioV393SCixV2twU7AO5mACyufGD0NRj86C673ZFgIUp9gjhXPfCfbp09wgtBbBHuoc3FsgFucQ34FOyXBW+qunv41HCIu8HdGMwEWBoDwGCjl+QD1tRX951jxDq3eKW+KhjB6BLb4gY2wJ2uAWOH4YAv7eIJhRA7n3jFpVkAwCvdPvVqy9gAhs0N+/I3qjRCG8hX9dQ6ww1BHbH3YmDHVgDs+p1E4RGXu/GmuM8m0j43R4ZMf/hadyAAsOAesIKAm0YdMLTd6cvl27GuWQ9toPpS6+wZXxUHuQUh21uIGixWBjAuFhZop58i1iX5HOdagxGw6ureUMDPjzrgrdwU8yBM6p1z1VfYqXWVJHwskv2eXENxuiqmGaNLLuccAB+WRdm9Trh2suDtpsFMSe63nn3+6Ym+tvA2l7t0I+Claq44XbiyUvroWIzBsD2pGTBMjrAmR1dfzApKKpMo5ms1Llh/KYIeNBho+yslGiy7tBZMgHEvFsknBgwZGYmYhJ5bJABnF1sYYtBg9zdHkcYIMLc8274yDpuEH8lRXyWgeid4B+X2BU4qogM2zIX2ZGSfkKydUJkAg8BeLEXz/jh8vAJOt0ur8EcAOMICODT6gB/kLuzIes9rtcmRMfpKqpfSD4+MEL7XcdGtCbCbW+Z+DMaZ0tsJN5uSquEJbvUsRAC7fP4jY6XBpplwdvJL+Iqovp7yDQQwhFVgTaY2BrsGLD6yzP3dWJZQYcnjSvv6Er1QU05M4xpdm+j/4R4wrKqVx8hE00EY3Cv0nnXznIykvVZf4Au5xmS4QCr9Vu5wi5jjCRUQAOx+3tHIvZJIhAvK8PBwc3g/A+AXGQCrYwaYW469GdB7HjaG36SCO/Z5ijdCCrli5wqFAX/BHe5kALySRYNT3NnoevivoKyP7ml0PU5qgCP9/f3uAH9qTACfgUG4js6Oes3es+AEKhIpgW6E8g2cW1BIQRq5w4ooux3VAPDAKZb78cGGo0f33Oskj27Ytu3tt6vdH04DTEpd+jVnXPPHyWfLjRo7wJBv6AC+5uE3IDibZ3Id9NQjEe17Y66hX5LlIcAf9Udw/PUFmhdMLGxGmQDDhjcl3JWrryPCXXfdl677xaUg1Zded3VpN/hhUerPzrwAc4A8yZE8CUQo4KYxAPwCVwPFs+3Z4BUxzzaTo4hqc96RkX7tEsl3lrml8QCQ3yB89xR2UaFROwLWn5+I6Wkxnp+ISScYAacai/y4sfEUK+BAEenvJzeIAP71GI3BNUs62o8kYybzLJpcBzNPesYFrob+DrFYeFF4ZeT3yZQ6VoyvDpgYvPzHiUq/cTYlarCH4gKwIQB48lgBTsCahZjZPAfy+PYHypGYAltSJOv3LCtyhTpg8mCQt+1HF4ZKoD8r5EECwOp5BvinYwKYm5bQ+SZVXjPPERPeQKA8vgFYgyBEm48ug31f3AIm76m/bb/DLTvPAG8bG8CwtuME5RtLyug9w+rQgMUqlydklZoUbj5aPEQE9Y+K2On2wBFJXPMHwG4ATzYFryRt7PRKYqTaR21u3lB8sQ8CVkXlfAEcYgIckQbGCHCI++lviHnG4VcOBLzFix0AhGQ95OBcPWsfMADul8TA2AJ+EcaTmMs70S91vmLuCTaKY3AjtyA7/HrLNyBDxFMONx+azNnvTZN7Jh9jABwYY8B3Q6DDPeCApLw9Rk7WMu4wnf0Kqsd40ToLsebw0WqYbnP/2QF3jhXgFPfdALhXvKfmOdZLVyEq4ebEhmqXAXwArJw/gDUTHTMNSFQcALeMHeBbSXRDVtSA2wey2NAbo63R5PX1iT2TObcTfAQsKCdirqR3rAE3QT5YjiV7XUkyNnaAQWrpygVodiUrAYdnkIUubVspR2FXuw2NHENK73pFlHIWrhjrfLCOYycuOaFLEGAVkTTWgEVpwLQqy6Z0myyR0c52rKZJtMtBOJyI0XaTuKAqEoiVhBn0Ckwz2apBUCFAtv7RyRzXyHDLbpXclF3o+6cJPWNror/XzTOcrThmkSwo/E9Go5gNj2rbpGDnK42yA2nTD2Lat7290N6Q0uXlWBjw7tlWw6gTtyri0qU5LW8KdAAJXO91mRND6oJLQY+DoYEB100sxtBEcx+8sgcT3gnAkoC56zu067OEwzKSA3aFRkP8OcRqZInuKyoFErCxXfTebY0cW3gd2j8WKbrIqcBIpMZOgaHWOrpweNjuvBzO923u1JgB5rhqnTFAxpYc2ha/FDNxvyjJXIlhV1JFlkQKFyYOCdxQNrpnfzWLdaZyM3c06l7Wr98zppHK1J7suSSTyWJnG90/hoAbCYpLs5DhMYzGoNZTMG1shSbTVONMllRBE0ZB3w8Y6huSlG70aCl4UYXPbnh72waTPEpE+4RfUdmG8vYr+8eSbyP39lEQ45wMISe33yzw/SuvbKvmuDHUYI3xqUvfPkofTEoZd2SAlXECX8TdkZRANNyMvx+NPkoupZH7g1RYqlj/4FJNkcFcA2VidQhm5Ibd3bH1imTa44K4QWC+k1H8HQL33lc+OEtHqNJkayNKCuXmlM22gZemUo1ZSY2L+wynRM/KfGrZc6Q/O3WqcewBU8j0rl19KdSo7dEHF8p5WPMpEkSy3kMiQUahezdsO0uuYpzc+D9osHN1kkbo+kvPfrANOO+xuDbrD4LAJ8O7wIrE/fvPXk3/9uo/3PnxDlivQTO0GuSDt1955agJdRKFFJvuP1utM/2D6p5HgA3MJmhXX42sv/rBBx989av7z549W92YHYb+AHfU5f8D1ApSovTeFkoAAAAASUVORK5CYII=';
+        let currentTrackingPhoto = null;
+        let currentProductPhotos = [];
+        let currentDetailId = null;
+        let html5QrCode = null;
+        let currentCameraId = null;
+        let isTorchOn = false;
+        let scanSuccessAudio = null;
+        let cameraDevices = [];
+        let scanDebounce = { text: '', time: 0 };
+        let listViewMode = 'customer';
+        let listStatusFilter = 'all';
+        let scanMode = 'input'; // 'input' = 入库扫码填单号, 'outbound' = 出库扫码
+
+        function getRecords() {
+            try {
+                // 兼容历史记录：无状态字段的默认视为「在库」
+                return (JSON.parse(localStorage.getItem(DB_KEY)) || []).map(r => ({ status: 'in', ...r }));
+            }
+            catch(e) { return []; }
+        }
+        function saveRecords(records) { localStorage.setItem(DB_KEY, JSON.stringify(records)); }
+
+        function getCustomers() {
+            try { return JSON.parse(localStorage.getItem(CUSTOMER_KEY)) || []; }
+            catch(e) { return []; }
+        }
+        function saveCustomers(customers) { localStorage.setItem(CUSTOMER_KEY, JSON.stringify(customers)); }
+
+        // ========== 管理员密码 ==========
+        function getAdminPwd() {
+            return localStorage.getItem(ADMIN_PWD_KEY) || 'admin';
+        }
+        // 统一密码验证：返回 true=通过, false=失败（已提示）
+        function verifyAdminPwd(actionDesc) {
+            const pwd = prompt(`🔒 ${actionDesc || '此操作'}需要管理员权限\n请输入管理员密码：`);
+            if (pwd === null) return false; // 用户取消
+            if (pwd !== getAdminPwd()) { showToast('❌ 密码错误，操作已取消'); return false; }
+            return true;
+        }
+        function changeAdminPwd() {
+            if (!verifyAdminPwd('修改密码')) return;
+            const newPwd = prompt('请输入新密码（4~20位）：');
+            if (newPwd === null) return;
+            const trimmed = newPwd.trim();
+            if (trimmed.length < 4 || trimmed.length > 20) { showToast('❌ 密码需为4~20位'); return; }
+            const confirmPwd = prompt('请再次输入新密码确认：');
+            if (confirmPwd === null) return;
+            if (confirmPwd !== trimmed) { showToast('❌ 两次输入不一致'); return; }
+            localStorage.setItem(ADMIN_PWD_KEY, trimmed);
+            showToast('✅ 密码修改成功');
+        }
+
+        // ========== 权限检测 ==========
+        async function checkCameraPermission() {
+            const tip = document.getElementById('permTip');
+            const tipText = document.getElementById('permTipText');
+            if (!navigator.permissions || !navigator.permissions.query) {
+                tipText.textContent = '请确保已允许摄像头权限，同页面只需授权一次';
+                return;
+            }
+            try {
+                const result = await navigator.permissions.query({ name: 'camera' });
+                updatePermUI(result.state);
+                result.addEventListener('change', () => updatePermUI(result.state));
+            } catch(e) {
+                tipText.textContent = '请确保已允许摄像头权限，同页面只需授权一次';
+            }
+        }
+        function updatePermUI(state) {
+            const tip = document.getElementById('permTip');
+            const tipText = document.getElementById('permTipText');
+            tip.classList.remove('granted', 'prompt', 'denied');
+            if (state === 'granted') {
+                tip.classList.add('granted');
+                tipText.textContent = '✅ 摄像头权限已授权，可直接扫码';
+            } else if (state === 'denied') {
+                tip.classList.add('denied');
+                tipText.textContent = '❌ 摄像头权限被拒绝，请在浏览器设置中开启';
+            } else {
+                tip.classList.add('prompt');
+                tipText.textContent = '首次扫码需授权摄像头，授权后同页面不再询问';
+            }
+        }
+        checkCameraPermission();
+
+        function showPermHelp() {
+            alert('📷 摄像头权限说明\n\n1. 首次扫码时浏览器会弹出授权请求，请点击「允许」\n2. 授权后，只要不关闭浏览器标签页，再次扫码无需重复授权\n3. 如果每次都要授权，请检查：\n   • 是否使用了隐私/无痕模式\n   • 是否每次清除了浏览器数据\n   • 建议将本页面「添加到主屏幕」作为App使用，权限更持久\n4. 安卓用户：Chrome设置 → 网站设置 → 摄像头 → 找到本站点 → 选择「允许」');
+        }
+
+        // ========== 客户选择下拉 ==========
+        function toggleCustomerDropdown() {
+            const dropdown = document.getElementById('customerDropdown');
+            const backdrop = document.getElementById('customerBackdrop');
+            const isOpen = dropdown.classList.contains('show');
+            if (isOpen) {
+                closeCustomerDropdown();
+            } else {
+                renderCustomerDropdownList();
+                dropdown.classList.add('show');
+                backdrop.classList.add('show');
+                setTimeout(() => {
+                    const searchInput = document.getElementById('customerSearchInDropdown');
+                    if (searchInput) { searchInput.value = ''; searchInput.focus(); }
+                }, 100);
+            }
+        }
+        function closeCustomerDropdown() {
+            document.getElementById('customerDropdown').classList.remove('show');
+            document.getElementById('customerBackdrop').classList.remove('show');
+        }
+        function renderCustomerDropdownList() {
+            const keyword = (document.getElementById('customerSearchInDropdown')?.value || '').trim().toLowerCase();
+            let customers = getCustomers();
+            if (keyword) {
+                customers = customers.filter(c => c.name.toLowerCase().includes(keyword) || c.memberId.toLowerCase().includes(keyword));
+            }
+            const container = document.getElementById('customerDropdownList');
+            const currentName = document.getElementById('customerName').value;
+            if (customers.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding:24px; color:#9ca3af; font-size:14px;"><div style="font-size:28px; margin-bottom:6px;">👤</div>${keyword ? '未找到匹配客户' : '暂无客户，请去「客户管理」添加'}</div>`;
+            } else {
+                let html = '';
+                customers.forEach(c => {
+                    const isSelected = currentName === c.name;
+                    html += `<div class="customer-item ${isSelected ? 'selected' : ''}" onclick="selectCustomer('${escapeJs(c.name)}', '${escapeJs(c.memberId)}')"><div><div class="c-name">${escapeHtml(c.name)}</div><div class="c-id">会员编号：${escapeHtml(c.memberId)}</div></div><div class="c-check">✓</div></div>`;
+                });
+                container.innerHTML = html;
+            }
+            document.getElementById('customerDropdownCount').textContent = customers.length;
+        }
+        function selectCustomer(name, memberId) {
+            document.getElementById('customerName').value = name;
+            document.getElementById('memberId').value = memberId;
+            document.getElementById('customerTriggerText').textContent = name;
+            document.getElementById('customerTriggerText').classList.remove('placeholder');
+            document.getElementById('customerTriggerText').classList.add('value');
+            document.getElementById('displayCustomerName').textContent = name;
+            document.getElementById('displayMemberId').textContent = memberId;
+            document.getElementById('selectedCustomerDisplay').style.display = 'block';
+            closeCustomerDropdown();
+            showToast('✅ 已选择：' + name);
+        }
+        function clearSelectedCustomer() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('memberId').value = '';
+            document.getElementById('customerTriggerText').textContent = '请选择或输入客户';
+            document.getElementById('customerTriggerText').classList.add('placeholder');
+            document.getElementById('customerTriggerText').classList.remove('value');
+            document.getElementById('selectedCustomerDisplay').style.display = 'none';
+        }
+
+        // ========== 客户管理页 ==========
+        function addCustomer() {
+            const name = document.getElementById('newCustomerName').value.trim();
+            const memberId = document.getElementById('newMemberId').value.trim();
+            if (!name) { showToast('❌ 请输入客户姓名'); return; }
+            if (!memberId) { showToast('❌ 请输入会员编号'); return; }
+            const customers = getCustomers();
+            if (customers.some(c => c.name === name && c.memberId === memberId)) {
+                showToast('⚠️ 该客户已存在'); return;
+            }
+            customers.push({ name, memberId, createdAt: new Date().toISOString() });
+            customers.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+            saveCustomers(customers);
+            document.getElementById('newCustomerName').value = '';
+            document.getElementById('newMemberId').value = '';
+            renderCustomerList();
+            showToast('✅ 客户添加成功');
+        }
+        function deleteCustomer(index) {
+            if (!verifyAdminPwd('删除客户')) return;
+            if (!confirm('密码正确 ✅\n确定删除这位客户吗？')) return;
+            const customers = getCustomers();
+            customers.splice(index, 1);
+            saveCustomers(customers);
+            renderCustomerList();
+            showToast('🗑️ 已删除');
+        }
+        function renderCustomerList() {
+            const keyword = (document.getElementById('customerSearchInput')?.value || '').trim().toLowerCase();
+            let customers = getCustomers();
+            if (keyword) {
+                customers = customers.filter(c => c.name.toLowerCase().includes(keyword) || c.memberId.toLowerCase().includes(keyword));
+            }
+            document.getElementById('customerStatCount').textContent = customers.length;
+            const container = document.getElementById('customerList');
+            if (customers.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div style="font-size:48px; margin-bottom:12px;">👤</div><div>${keyword ? '未找到匹配客户' : '暂无客户，请添加'}</div></div>`;
+                return;
+            }
+            let html = '';
+            customers.forEach((c, i) => {
+                html += `<div class="customer-card"><div class="c-info"><div class="c-name-row">${escapeHtml(c.name)}</div><div class="c-id-row">会员编号：${escapeHtml(c.memberId)}</div></div><button class="c-del" onclick="deleteCustomer(${i})">🗑</button></div>`;
+            });
+            container.innerHTML = html;
+        }
+        function escapeJs(str) {
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
+        }
+
+        // ========== 列表视图切换 ==========
+        function setListView(mode) {
+            listViewMode = mode;
+            document.getElementById('viewTime').classList.toggle('active', mode === 'time');
+            document.getElementById('viewCustomer').classList.toggle('active', mode === 'customer');
+            renderList();
+        }
+
+        // ========== 在库/已出库 归类筛选 ==========
+        function setStatusFilter(status) {
+            listStatusFilter = status;
+            document.getElementById('filterAll').classList.toggle('active', status === 'all');
+            document.getElementById('filterIn').classList.toggle('active', status === 'in');
+            document.getElementById('filterOut').classList.toggle('active', status === 'out');
+            renderList();
+        }
+
+        // ========== 导出功能 ==========
+        let exportTarget = { name: '', memberId: '' };
+
+        function openExportModal(customerName, memberId) {
+            exportTarget = { name: customerName, memberId: memberId };
+            // 开始日期默认取该客户最早一条记录的日期，结束日期默认为今天（本地时区）
+            const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const todayStr = fmt(new Date());
+            const customerRecords = getRecords().filter(r => r.customerName === customerName);
+            let startStr = todayStr;
+            if (customerRecords.length > 0) {
+                const minTime = Math.min(...customerRecords.map(r => new Date(r.createdAt).getTime()));
+                startStr = fmt(new Date(minTime));
+            }
+            document.getElementById('exportStartDate').value = startStr;
+            document.getElementById('exportEndDate').value = todayStr;
+            document.getElementById('dateModal').classList.add('show');
+        }
+
+        function closeDateModal() {
+            document.getElementById('dateModal').classList.remove('show');
+            exportTarget = { name: '', memberId: '' };
+        }
+
+        function confirmExport() {
+            const startStr = document.getElementById('exportStartDate').value;
+            const endStr = document.getElementById('exportEndDate').value;
+            const targetName = exportTarget.name;
+            const targetId = exportTarget.memberId;
+            closeDateModal();
+            doExport(targetName, targetId, startStr, endStr);
+        }
+
+        function doExport(customerName, memberId, startStr, endStr) {
+            let records = getRecords().filter(r => r.customerName === customerName);
+            if (records.length === 0) { showToast('⚠️ 该客户暂无记录'); return; }
+
+            // 日期过滤
+            let dateLabel = '全部记录';
+            if (startStr || endStr) {
+                const startDate = startStr ? new Date(startStr + 'T00:00:00') : null;
+                const endDate = endStr ? new Date(endStr + 'T23:59:59') : null;
+                records = records.filter(r => {
+                    const d = new Date(r.createdAt);
+                    if (startDate && d < startDate) return false;
+                    if (endDate && d > endDate) return false;
+                    return true;
+                });
+                if (records.length === 0) { showToast('⚠️ 所选日期范围内无记录'); return; }
+                dateLabel = (startStr || '开始') + ' 至 ' + (endStr || '今天');
+            }
+
+            const totalQty = records.reduce((sum, r) => sum + r.quantity, 0);
+            const totalPhotos = records.reduce((sum, r) => sum + r.productPhotos.length, 0);
+
+            let rows = '';
+            records.forEach((r, idx) => {
+                const date = new Date(r.createdAt);
+                const timeStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+                let productImgs = '';
+                r.productPhotos.forEach((p, i) => {
+                    productImgs += `<div style="margin-bottom:10px;"><div style="font-size:13px; color:#666; margin-bottom:4px;">产品图 ${i+1}</div><img src="${p}" style="max-width:100%; border-radius:6px; border:1px solid #e5e7eb;"></div>`;
+                });
+                rows += `<tr><td style="padding:10px; border:1px solid #e5e7eb; text-align:center;">${idx + 1}</td><td style="padding:10px; border:1px solid #e5e7eb; font-family:monospace; font-size:14px;">${escapeHtml(r.trackingNumber)}</td><td style="padding:10px; border:1px solid #e5e7eb; text-align:center;">${r.quantity}</td><td style="padding:10px; border:1px solid #e5e7eb; text-align:center; white-space:nowrap;">${timeStr}</td></tr><tr><td colspan="4" style="padding:10px; border:1px solid #e5e7eb; background:#fafafa;"><div style="margin-bottom:8px;"><strong>快递单号照片：</strong></div><img src="${r.trackingPhoto}" style="max-width:300px; border-radius:6px; border:1px solid #e5e7eb;"><div style="margin:12px 0 8px;"><strong>内件产品图（${r.productPhotos.length}张）：</strong></div>${productImgs}</td></tr>`;
+            });
+
+            const exportHtml = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>${escapeHtml(customerName)} - 入库记录导出</title>
+<style>
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px; background: #f9fafb; color: #111827; }
+.header { background: white; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.header h1 { margin: 0 0 12px; font-size: 22px; }
+.header .meta { display: flex; gap: 24px; flex-wrap: wrap; color: #6b7280; font-size: 14px; }
+.header .meta span strong { color: #111827; }
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); font-size: 14px; }
+th { background: #f3f4f6; padding: 12px; text-align: left; font-weight: 600; color: #374151; border-bottom: 2px solid #e5e7eb; }
+td { vertical-align: top; }
+img { max-width: 100%; height: auto; }
+.footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 24px; padding: 16px; }
+@media print { body { background: white; } .header, table { box-shadow: none; border: 1px solid #e5e7eb; } }
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📦 ${escapeHtml(customerName)} - 入库记录报告</h1>
+    <div class="meta">
+        <span>会员编号：<strong>${escapeHtml(memberId)}</strong></span>
+        <span>记录总数：<strong>${records.length} 条</strong></span>
+        <span>总件数：<strong>${totalQty} 件</strong></span>
+        <span>总图片：<strong>${totalPhotos} 张</strong></span>
+        <span>导出时间：<strong>${new Date().toLocaleString('zh-CN')}</strong></span>
+        <span>日期范围：<strong>${dateLabel}</strong></span>
+    </div>
+</div>
+<table>
+    <thead><tr><th style="width:50px; text-align:center;">序号</th><th>快递单号</th><th style="width:60px; text-align:center;">数量</th><th style="width:140px; text-align:center;">入库时间</th></tr></thead>
+    <tbody>${rows}</tbody>
+</table>
+<div class="footer">由 📦 仓库本地系统 生成</div>
+</body>
+</html>`;
+
+            const blob = new Blob([exportHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const fileDateLabel = (startStr || 'all') + '_' + (endStr || 'all');
+            a.download = `${customerName}_入库记录_${fileDateLabel}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('✅ 导出成功，请查看下载');
+        }
+
+        function toggleCustomerGroup(name) {
+            const body = document.getElementById('cg-body-' + name);
+            const header = document.getElementById('cg-header-' + name);
+            const isOpen = body.classList.contains('show');
+            if (isOpen) {
+                body.classList.remove('show');
+                header.classList.remove('expanded');
+            } else {
+                body.classList.add('show');
+                header.classList.add('expanded');
+            }
+        }
+
+        // ========== 扫码核心 ==========
+        function initScanAudio() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+                scanSuccessAudio = () => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.setValueAtTime(1200, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+                    osc.start(ctx.currentTime);
+                    osc.stop(ctx.currentTime + 0.2);
+                };
+            } catch(e) {}
+        }
+        initScanAudio();
+
+        async function startBarcodeScan(mode) {
+            scanMode = mode || 'input';
+            const overlay = document.getElementById('scanOverlay');
+            overlay.classList.add('show');
+            updateScanStatus('正在启动摄像头...', 'loading');
+
+            if (typeof Html5Qrcode === 'undefined') {
+                showToast('❌ 扫描库加载失败');
+                stopBarcodeScan();
+                return;
+            }
+
+            try {
+                await tryStartScan({ facingMode: 'environment' });
+                return;
+            } catch (err1) {
+                console.log('环境摄像头失败:', err1.message || err1);
+            }
+
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    cameraDevices = devices;
+                    const rear = devices.find(d => /back|rear|后置|environment/i.test(d.label));
+                    const target = rear || devices[devices.length - 1];
+                    currentCameraId = target.id;
+                    await tryStartScan(currentCameraId);
+                    return;
+                }
+            } catch (err2) {
+                console.log('枚举设备失败:', err2.message || err2);
+            }
+
+            try {
+                await tryStartScan(undefined);
+                return;
+            } catch (err3) {
+                console.log('默认摄像头失败:', err3.message || err3);
+            }
+
+            updateScanStatus('摄像头启动失败', 'error');
+            showToast('❌ 无法启动摄像头，请检查权限');
+            setTimeout(stopBarcodeScan, 2000);
+        }
+
+        async function tryStartScan(cameraIdOrConfig) {
+            if (html5QrCode) {
+                try { await html5QrCode.stop(); } catch(e) {}
+                try { html5QrCode.clear(); } catch(e) {}
+                html5QrCode = null;
+            }
+
+            html5QrCode = new Html5Qrcode('barcodeReader');
+
+            const config = {
+                fps: 15,
+                qrbox: { width: 320, height: 140 },
+                disableFlip: false,
+                formatsToSupport: [
+                    Html5QrcodeSupportedFormats.CODE_128,
+                    Html5QrcodeSupportedFormats.CODE_39,
+                    Html5QrcodeSupportedFormats.CODE_93,
+                    Html5QrcodeSupportedFormats.EAN_13,
+                    Html5QrcodeSupportedFormats.EAN_8,
+                    Html5QrcodeSupportedFormats.UPC_A,
+                    Html5QrcodeSupportedFormats.UPC_E,
+                    Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+                    Html5QrcodeSupportedFormats.ITF,
+                    Html5QrcodeSupportedFormats.CODABAR,
+                    Html5QrcodeSupportedFormats.RSS_14,
+                    Html5QrcodeSupportedFormats.RSS_EXPANDED,
+                    Html5QrcodeSupportedFormats.QR_CODE,
+                    Html5QrcodeSupportedFormats.DATA_MATRIX,
+                    Html5QrcodeSupportedFormats.AZTEC,
+                    Html5QrcodeSupportedFormats.PDF_417,
+                    Html5QrcodeSupportedFormats.MAXICODE
+                ]
+            };
+
+            await html5QrCode.start(
+                cameraIdOrConfig,
+                config,
+                onScanSuccess,
+                onScanFailure
+            );
+
+            updateScanStatus('请将条形码对准框内', 'scanning');
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            const now = Date.now();
+            if (decodedText === scanDebounce.text && now - scanDebounce.time < 2500) return;
+            scanDebounce = { text: decodedText, time: now };
+
+            if (scanSuccessAudio) scanSuccessAudio();
+            if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+            updateScanStatus('✅ 识别成功', 'success');
+
+            if (scanMode === 'outbound') {
+                showToast('✅ 扫描成功: ' + decodedText);
+                setTimeout(() => {
+                    stopBarcodeScan();
+                    handleOutboundScan(decodedText);
+                }, 500);
+                return;
+            }
+
+            document.getElementById('trackingNumber').value = decodedText;
+            showToast('✅ 扫描成功: ' + decodedText);
+
+            setTimeout(() => {
+                stopBarcodeScan();
+                setTimeout(() => document.getElementById('quantity').focus(), 200);
+            }, 500);
+        }
+
+        function onScanFailure(errorMessage) {
+            updateScanStatus('正在识别中...', 'scanning');
+        }
+
+        function updateScanStatus(text, type) {
+            const statusEl = document.getElementById('scanStatus');
+            if (!statusEl) return;
+            const dotEl = statusEl.querySelector('.dot');
+            const spanEl = statusEl.querySelector('span');
+            if (spanEl) spanEl.textContent = text;
+            if (!dotEl) return;
+
+            if (type === 'success') {
+                dotEl.style.background = '#10b981';
+                dotEl.style.animation = 'none';
+                statusEl.style.background = 'rgba(16, 185, 129, 0.2)';
+            } else if (type === 'error') {
+                dotEl.style.background = '#ef4444';
+                dotEl.style.animation = 'none';
+                statusEl.style.background = 'rgba(239, 68, 68, 0.2)';
+            } else {
+                dotEl.style.background = '#10b981';
+                dotEl.style.animation = 'pulse 1.5s infinite';
+                statusEl.style.background = 'rgba(255,255,255,0.1)';
+            }
+        }
+
+        async function stopBarcodeScan() {
+            document.getElementById('scanOverlay').classList.remove('show');
+            isTorchOn = false;
+            if (html5QrCode) {
+                try {
+                    await html5QrCode.stop();
+                    html5QrCode.clear();
+                } catch(e) {}
+                html5QrCode = null;
+            }
+        }
+
+        async function switchCamera() {
+            if (!html5QrCode || cameraDevices.length < 2) {
+                showToast('⚠️ 只有一个摄像头');
+                return;
+            }
+            try {
+                const idx = cameraDevices.findIndex(d => d.id === currentCameraId);
+                const next = cameraDevices[(idx + 1) % cameraDevices.length];
+                currentCameraId = next.id;
+                updateScanStatus('正在切换摄像头...', 'loading');
+                await tryStartScan(currentCameraId);
+                showToast('🔄 已切换');
+            } catch(e) {
+                showToast('❌ 切换失败');
+            }
+        }
+
+        async function toggleTorch() {
+            if (!html5QrCode) return;
+            try {
+                const track = html5QrCode.getRunningTrack && html5QrCode.getRunningTrack();
+                if (!track) {
+                    showToast('⚠️ 暂不支持手电筒');
+                    return;
+                }
+                const capabilities = track.getCapabilities && track.getCapabilities();
+                if (!capabilities || !capabilities.torch) {
+                    showToast('⚠️ 设备不支持手电筒');
+                    return;
+                }
+                isTorchOn = !isTorchOn;
+                await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
+                const btn = document.getElementById('torchBtn');
+                if (btn) btn.style.background = isTorchOn ? 'rgba(251, 191, 36, 0.3)' : 'rgba(255,255,255,0.1)';
+                showToast(isTorchOn ? '🔦 已开启' : '🔦 已关闭');
+            } catch(e) {
+                showToast('⚠️ 手电筒控制失败');
+            }
+        }
+
+        // ========== 图片处理 ==========
+        function compressImage(file, maxWidth = 1200, quality = 0.7) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > maxWidth) { h = h * maxWidth / w; w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#fff';
+                        ctx.fillRect(0,0,w,h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleTrackingPhoto(input) {
+            const file = input.files[0];
+            if (!file) return;
+            showToast('正在处理图片...');
+            currentTrackingPhoto = await compressImage(file);
+            document.getElementById('trackingPhotoPreview').innerHTML = 
+                `<div class="photo-item" style="width:120px; height:120px;"><img src="${currentTrackingPhoto}"><div class="del-btn" onclick="removeTrackingPhoto()">✕</div></div>`;
+            input.value = '';
+        }
+        function removeTrackingPhoto() {
+            currentTrackingPhoto = null;
+            document.getElementById('trackingPhotoPreview').innerHTML = '';
+        }
+        async function handleProductPhoto(input) {
+            const file = input.files[0];
+            if (!file) return;
+            showToast('正在处理图片...');
+            const compressed = await compressImage(file);
+            currentProductPhotos.push(compressed);
+            renderProductPhotos();
+            input.value = '';
+        }
+        function removeProductPhoto(index) {
+            currentProductPhotos.splice(index, 1);
+            renderProductPhotos();
+        }
+        function renderProductPhotos() {
+            const grid = document.getElementById('productPhotosGrid');
+            let html = '';
+            currentProductPhotos.forEach((photo, i) => {
+                html += `<div class="photo-item"><img src="${photo}"><div class="del-btn" onclick="removeProductPhoto(${i})">✕</div></div>`;
+            });
+            html += `<div class="camera-btn" style="aspect-ratio:1; justify-content:center;" onclick="document.getElementById('productPhotoInput').click()">
+                <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            </div>`;
+            grid.innerHTML = html;
+            document.getElementById('productCount').textContent = `(${currentProductPhotos.length}张)`;
+        }
+
+        // ========== 保存记录 ==========
+        function saveRecord() {
+            const customerName = document.getElementById('customerName').value.trim();
+            const memberId = document.getElementById('memberId').value.trim();
+            const trackingNumber = document.getElementById('trackingNumber').value.trim();
+            const quantity = parseInt(document.getElementById('quantity').value) || 0;
+
+            if (!customerName) { showToast('❌ 请选择客户'); return; }
+            if (!memberId) { showToast('❌ 会员编号为空'); return; }
+            if (!trackingNumber) { showToast('❌ 请输入快递单号'); return; }
+            if (!currentTrackingPhoto) { showToast('❌ 请拍摄快递单号照片'); return; }
+            if (currentProductPhotos.length === 0) { showToast('❌ 请拍摄至少一张内件产品图'); return; }
+            if (quantity < 1) { showToast('❌ 请输入物品数量'); return; }
+
+            const record = {
+                id: Date.now().toString(),
+                customerName,
+                memberId,
+                trackingNumber,
+                trackingPhoto: currentTrackingPhoto,
+                productPhotos: currentProductPhotos,
+                quantity,
+                createdAt: new Date().toISOString()
+            };
+
+            const records = getRecords();
+            records.unshift(record);
+            saveRecords(records);
+
+            clearSelectedCustomer();
+            document.getElementById('trackingNumber').value = '';
+            document.getElementById('quantity').value = '';
+            currentTrackingPhoto = null;
+            currentProductPhotos = [];
+            document.getElementById('trackingPhotoPreview').innerHTML = '';
+            renderProductPhotos();
+
+            showToast('✅ 保存成功！');
+            updateStats();
+            showReceipt(record);
+        }
+
+        // ========== 入库确认单 ==========
+        let currentReceiptRecord = null;
+
+        // 生成 CODE128 条形码 SVG 字符串（离线库未加载时返回空串）
+        function getBarcodeSvgString(text, opts) {
+            if (typeof JsBarcode === 'undefined') return '';
+            const o = Object.assign({ format: 'CODE128', displayValue: true, fontSize: 16, height: 60, margin: 0, width: 2 }, opts || {});
+            try {
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                JsBarcode(svg, text, o);
+                return svg.outerHTML;
+            } catch(e) {
+                console.log('条形码生成失败:', e);
+                return '';
+            }
+        }
+
+        function showReceipt(record, isReprint) {
+            currentReceiptRecord = record;
+            document.getElementById('receiptTitle').textContent = isReprint ? '🖨️ 补打确认单' : '✅ 入库成功';
+
+            const date = new Date(record.createdAt);
+            const timeStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+            const barcodeSvg = getBarcodeSvgString(record.trackingNumber);
+            const barcodeBlock = barcodeSvg
+                ? `<div style="background:white; border-radius:10px; padding:14px 10px 10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                        <div style="font-size:12px; color:#6b7280; margin-bottom:6px;">条形码（扫码核对）</div>
+                        <div style="display:flex; justify-content:center; overflow:hidden;">${barcodeSvg}</div>
+                   </div>`
+                : `<div style="background:#fef3c7; border-radius:10px; padding:10px; margin-bottom:12px; font-size:12px; color:#92400e;">⚠️ 条形码库未加载（需联网），确认单仍可打印</div>`;
+
+            document.getElementById('receiptBody').innerHTML = `
+                <div style="background:#f0f9ff; border:2px dashed #0ea5e9; border-radius:12px; padding:20px; text-align:center;">
+                    <img src="${LOGO_SRC}" style="height:44px; width:auto; margin-bottom:6px;" alt="TM">
+                    <div style="font-size:13px; color:#0369a1; margin-bottom:8px; font-weight:600;">📦 入库确认单</div>
+
+                    <div style="background:white; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                        <div style="font-size:13px; color:#6b7280; margin-bottom:4px;">客户姓名</div>
+                        <div style="font-size:22px; font-weight:700; color:#111827;">${escapeHtml(record.customerName)}</div>
+                    </div>
+
+                    <div style="background:white; border-radius:10px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                        <div style="font-size:13px; color:#6b7280; margin-bottom:4px;">会员编号</div>
+                        <div style="font-size:18px; font-weight:700; color:#059669;">${escapeHtml(record.memberId)}</div>
+                    </div>
+
+                    ${barcodeBlock}
+
+                    <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:10px; padding:16px; margin-bottom:12px;">
+                        <div style="font-size:12px; color:#64748b; margin-bottom:6px; letter-spacing:1px;">快递单号 / 出库核对</div>
+                        <div style="font-size:24px; font-weight:700; color:#0f172a; font-family:monospace; letter-spacing:2px; word-break:break-all;">${escapeHtml(record.trackingNumber)}</div>
+                    </div>
+
+                    <div style="display:flex; gap:10px; margin-bottom:12px;">
+                        <div style="flex:1; background:white; border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                            <div style="font-size:12px; color:#6b7280;">物品数量</div>
+                            <div style="font-size:20px; font-weight:700; color:#111827; margin-top:2px;">${record.quantity} 件</div>
+                        </div>
+                        <div style="flex:1; background:white; border-radius:10px; padding:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                            <div style="font-size:12px; color:#6b7280;">产品图片</div>
+                            <div style="font-size:20px; font-weight:700; color:#111827; margin-top:2px;">${record.productPhotos.length} 张</div>
+                        </div>
+                    </div>
+
+                    <div style="font-size:12px; color:#6b7280;">入库时间：${timeStr}</div>
+                </div>
+            `;
+            document.getElementById('receiptModal').classList.add('show');
+        }
+
+        function closeReceiptModal() {
+            document.getElementById('receiptModal').classList.remove('show');
+        }
+
+        // 打印确认单：热敏小票版式（58/80mm 通用），姓名 + 会员编号 + 数量 + 条形码 + 大字体入库时间
+        function printReceipt() {
+            const r = currentReceiptRecord;
+            if (!r) { showToast('⚠️ 无确认单数据'); return; }
+
+            const date = new Date(r.createdAt);
+            const timeStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+            // 热敏打印用更大的条形码，便于扫码枪识别
+            const barcodeSvg = getBarcodeSvgString(r.trackingNumber, { width: 1.6, height: 40, fontSize: 11 });
+            const barcodeHtml = barcodeSvg
+                ? `<div class="barcode-box">${barcodeSvg}</div>`
+                : `<div class="barcode-box"><div class="no-barcode">${escapeHtml(r.trackingNumber)}</div></div>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>入库确认单 - ${escapeHtml(r.customerName)}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+@page { size: 60mm 40mm; margin: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 58mm; margin: 0 auto; padding: 1.5mm 1mm; color: #000; -webkit-print-color-adjust: exact; }
+.ticket { text-align: center; }
+.logo { height: 6.5mm; width: auto; margin-bottom: 0.6mm; filter: grayscale(100%) contrast(1.2); }
+.title { font-size: 10pt; font-weight: 800; letter-spacing: 2pt; }
+.sub { display: none; }
+.divider { border-top: 1px dashed #000; margin: 1.2mm 0; }
+.row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.4mm 0.5mm; font-size: 8.5pt; }
+.row .label { font-size: 7.5pt; }
+.row .value { font-weight: 800; }
+.row .value.name { font-size: 11pt; }
+.row .value.mid { font-size: 9pt; }
+.row .value.qty { font-size: 10pt; }
+.barcode-box { margin: 0.8mm 0 0; display: flex; justify-content: center; }
+.barcode-box svg { max-width: 100%; height: auto; }
+.no-barcode { font-family: monospace; font-size: 10pt; font-weight: 800; word-break: break-all; }
+.time-box { border: 1.5px solid #000; border-radius: 1.5mm; padding: 0.8mm 1mm 1mm; margin-top: 1mm; }
+.time-box .t-label { font-size: 7pt; font-weight: 700; letter-spacing: 1pt; }
+.time-box .t-value { font-size: 10.5pt; font-weight: 800; margin-top: 0.3mm; letter-spacing: 0.3px; }
+.footer { display: none; }
+@media print { body { padding: 1mm; } }
+</style>
+</head>
+<body>
+<div class="ticket">
+    <img src="${LOGO_SRC}" class="logo" alt="TM">
+    <div class="title">入库确认单</div>
+    <div class="sub">INBOUND RECEIPT</div>
+    <div class="divider"></div>
+    <div class="row"><span class="label">客户姓名</span><span class="value name">${escapeHtml(r.customerName)}</span></div>
+    <div class="row"><span class="label">会员编号</span><span class="value mid">${escapeHtml(r.memberId)}</span></div>
+    <div class="row"><span class="label">物品数量</span><span class="value qty">${r.quantity} 件</span></div>
+    <div class="divider"></div>
+    ${barcodeHtml}
+    <div class="time-box">
+        <div class="t-label">入 库 时 间</div>
+        <div class="t-value">${timeStr}</div>
+    </div>
+    <div class="footer">*** 请妥善保管本单据 ***</div>
+</div>
+</body>
+</html>`);
+            w.document.close();
+            w.focus();
+            setTimeout(() => { w.print(); }, 300);
+        }
+
+        // 从详情弹窗随时补打确认单
+        function reprintCurrentReceipt() {
+            const records = getRecords();
+            const r = records.find(x => x.id === currentDetailId);
+            if (!r) { showToast('⚠️ 记录不存在'); return; }
+            closeModal();
+            showReceipt(r, true);
+        }
+
+        // ========== 出库功能 ==========
+        function handleOutboundScan(code) {
+            document.getElementById('outboundManual').value = '';
+            const resultBox = document.getElementById('outboundResult');
+            if (!code) { showToast('❌ 请输入快递单号'); return; }
+
+            const records = getRecords();
+            const r = records.find(x => x.trackingNumber === code);
+
+            if (!r) {
+                resultBox.innerHTML = `
+                    <div style="background:#fef2f2; border:1.5px solid #fecaca; border-radius:12px; padding:20px; text-align:center;">
+                        <div style="font-size:32px; margin-bottom:8px;">❌</div>
+                        <div style="font-size:16px; font-weight:700; color:#991b1b;">未找到该单号的入库记录</div>
+                        <div style="font-size:14px; color:#b91c1c; margin-top:6px; font-family:monospace; word-break:break-all;">${escapeHtml(code)}</div>
+                    </div>`;
+                return;
+            }
+
+            if (r.status === 'out') {
+                const outDate = r.outAt ? new Date(r.outAt) : null;
+                const outStr = outDate ? `${outDate.getFullYear()}-${String(outDate.getMonth()+1).padStart(2,'0')}-${String(outDate.getDate()).padStart(2,'0')} ${String(outDate.getHours()).padStart(2,'0')}:${String(outDate.getMinutes()).padStart(2,'0')}` : '-';
+                resultBox.innerHTML = `
+                    <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:12px; padding:20px; text-align:center;">
+                        <div style="font-size:32px; margin-bottom:8px;">📤</div>
+                        <div style="font-size:16px; font-weight:700; color:#475569;">该单已出库</div>
+                        <div style="font-size:13px; color:#64748b; margin-top:4px;">出库时间：${outStr}</div>
+                        <div style="background:white; border-radius:10px; padding:14px; margin-top:12px; text-align:left;">
+                            <div style="font-size:15px; font-weight:700; color:#111827;">${escapeHtml(r.customerName)} <span style="font-size:13px; color:#059669; font-weight:600; margin-left:6px;">会员：${escapeHtml(r.memberId)}</span></div>
+                            <div style="font-size:13px; color:#6b7280; margin-top:4px; font-family:monospace; word-break:break-all;">${escapeHtml(r.trackingNumber)}</div>
+                            <div style="font-size:13px; color:#6b7280; margin-top:4px;">数量：${r.quantity} 件</div>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            resultBox.innerHTML = `
+                <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:12px; padding:20px; text-align:center;">
+                    <div style="font-size:32px; margin-bottom:8px;">📦</div>
+                    <div style="font-size:16px; font-weight:700; color:#065f46;">找到在库记录，请核对</div>
+                    <div style="background:white; border-radius:10px; padding:14px; margin-top:12px; text-align:left;">
+                        <div style="font-size:17px; font-weight:700; color:#111827;">${escapeHtml(r.customerName)}</div>
+                        <div style="font-size:13px; color:#059669; font-weight:600; margin-top:2px;">会员编号：${escapeHtml(r.memberId)}</div>
+                        <div style="font-size:13px; color:#6b7280; margin-top:6px; font-family:monospace; word-break:break-all;">单号：${escapeHtml(r.trackingNumber)}</div>
+                        <div style="font-size:13px; color:#6b7280; margin-top:4px;">数量：<strong style="color:#111827;">${r.quantity} 件</strong></div>
+                    </div>
+                    <button onclick="confirmOutbound('${r.id}')" style="width:100%; margin-top:14px; padding:14px; background:#059669; color:white; border:none; border-radius:10px; font-size:16px; font-weight:700; cursor:pointer;">✅ 确认出库</button>
+                </div>`;
+        }
+
+        function confirmOutbound(id) {
+            const records = getRecords();
+            const r = records.find(x => x.id === id);
+            if (!r) { showToast('⚠️ 记录不存在'); return; }
+            r.status = 'out';
+            r.outAt = new Date().toISOString();
+            saveRecords(records);
+
+            showToast('✅ 出库成功：' + r.customerName);
+            document.getElementById('outboundResult').innerHTML = `
+                <div style="background:#059669; border-radius:12px; padding:20px; text-align:center; color:white;">
+                    <div style="font-size:32px; margin-bottom:8px;">✅</div>
+                    <div style="font-size:17px; font-weight:700;">出库成功</div>
+                    <div style="font-size:14px; margin-top:6px; opacity:0.9;">${escapeHtml(r.customerName)} · ${r.quantity} 件</div>
+                    <div style="font-size:13px; margin-top:4px; opacity:0.8; font-family:monospace; word-break:break-all;">${escapeHtml(r.trackingNumber)}</div>
+                    <button onclick="printOutboundReceiptById('${r.id}')" style="width:100%; margin-top:14px; padding:12px; background:white; color:#059669; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer;">🖨️ 打印出库凭证</button>
+                </div>`;
+            renderOutboundToday();
+            updateStats();
+            // 出库成功自动打印出库凭证
+            printOutboundReceipt(r);
+        }
+
+        function printOutboundReceiptById(id) {
+            const r = getRecords().find(x => x.id === id);
+            if (!r) { showToast('⚠️ 记录不存在'); return; }
+            printOutboundReceipt(r);
+        }
+
+        // 打印出库凭证：热敏小票版式，含大字体出库时间
+        function printOutboundReceipt(r) {
+            const outDate = r.outAt ? new Date(r.outAt) : new Date();
+            const outStr = `${outDate.getFullYear()}-${String(outDate.getMonth()+1).padStart(2,'0')}-${String(outDate.getDate()).padStart(2,'0')} ${String(outDate.getHours()).padStart(2,'0')}:${String(outDate.getMinutes()).padStart(2,'0')}`;
+            const barcodeSvg = getBarcodeSvgString(r.trackingNumber, { width: 1.6, height: 40, fontSize: 11 });
+            const barcodeHtml = barcodeSvg
+                ? `<div class="barcode-box">${barcodeSvg}</div>`
+                : `<div class="barcode-box"><div class="no-barcode">${escapeHtml(r.trackingNumber)}</div></div>`;
+
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>出库凭证 - ${escapeHtml(r.customerName)}</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+@page { size: 60mm 40mm; margin: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; width: 58mm; margin: 0 auto; padding: 1.5mm 1mm; color: #000; -webkit-print-color-adjust: exact; }
+.ticket { text-align: center; }
+.logo { height: 6.5mm; width: auto; margin-bottom: 0.6mm; filter: grayscale(100%) contrast(1.2); }
+.title { font-size: 10pt; font-weight: 800; letter-spacing: 2pt; }
+.sub { display: none; }
+.divider { border-top: 1px dashed #000; margin: 1.2mm 0; }
+.row { display: flex; justify-content: space-between; align-items: baseline; padding: 0.4mm 0.5mm; font-size: 8.5pt; }
+.row .label { font-size: 7.5pt; }
+.row .value { font-weight: 800; }
+.row .value.name { font-size: 11pt; }
+.row .value.mid { font-size: 9pt; }
+.row .value.qty { font-size: 10pt; }
+.barcode-box { margin: 0.8mm 0 0; display: flex; justify-content: center; }
+.barcode-box svg { max-width: 100%; height: auto; }
+.no-barcode { font-family: monospace; font-size: 10pt; font-weight: 800; word-break: break-all; }
+.time-box { border: 1.5px solid #000; border-radius: 1.5mm; padding: 0.8mm 1mm 1mm; margin-top: 1mm; }
+.time-box .t-label { font-size: 7pt; font-weight: 700; letter-spacing: 1pt; }
+.time-box .t-value { font-size: 10.5pt; font-weight: 800; margin-top: 0.3mm; letter-spacing: 0.3px; }
+.footer { display: none; }
+@media print { body { padding: 1mm; } }
+</style>
+</head>
+<body>
+<div class="ticket">
+    <img src="${LOGO_SRC}" class="logo" alt="TM">
+    <div class="title">出库凭证</div>
+    <div class="sub">OUTBOUND RECEIPT</div>
+    <div class="divider"></div>
+    <div class="row"><span class="label">客户姓名</span><span class="value name">${escapeHtml(r.customerName)}</span></div>
+    <div class="row"><span class="label">会员编号</span><span class="value mid">${escapeHtml(r.memberId)}</span></div>
+    <div class="row"><span class="label">物品数量</span><span class="value qty">${r.quantity} 件</span></div>
+    <div class="divider"></div>
+    ${barcodeHtml}
+    <div class="time-box">
+        <div class="t-label">出 库 时 间</div>
+        <div class="t-value">${outStr}</div>
+    </div>
+    <div class="footer">*** 货已出库 · 请核对签收 ***</div>
+</div>
+</body>
+</html>`);
+            w.document.close();
+            w.focus();
+            setTimeout(() => { w.print(); }, 300);
+        }
+
+        function renderOutboundToday() {
+            const today = new Date().toDateString();
+            const list = getRecords().filter(r => r.status === 'out' && r.outAt && new Date(r.outAt).toDateString() === today);
+            document.getElementById('outboundTodayCount').textContent = list.reduce((s, r) => s + r.quantity, 0);
+            const container = document.getElementById('outboundTodayList');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="empty-state" style="padding:30px 20px;"><div style="font-size:36px; margin-bottom:8px;">📭</div><div>今日暂无出库记录</div></div>`;
+                return;
+            }
+            let html = '';
+            list.forEach(r => {
+                const d = new Date(r.outAt);
+                const tStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+                html += `<div class="record-card" onclick="showDetail('${r.id}')"><div style="display:flex; justify-content:space-between; align-items:center;"><div><div style="font-size:15px; font-weight:700; color:#111827;">${escapeHtml(r.customerName)}</div><div style="font-size:12px; color:#6b7280; margin-top:2px; font-family:monospace;">${escapeHtml(r.trackingNumber)}</div></div><div style="text-align:right;"><span class="badge" style="background:#d1fae5; color:#065f46;">已出库</span><div style="font-size:12px; color:#9ca3af; margin-top:4px;">${tStr} · ${r.quantity}件</div></div></div></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // ========== 列表展示 ==========
+
+        // ========== 列表展示 ==========
+        function renderList() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            let records = getRecords();
+
+            // 状态归类筛选：全部 / 在库 / 已出库
+            if (listStatusFilter !== 'all') {
+                records = records.filter(r => r.status === listStatusFilter);
+            }
+
+            if (keyword) {
+                records = records.filter(r => 
+                    r.customerName.toLowerCase().includes(keyword) || 
+                    (r.memberId && r.memberId.toLowerCase().includes(keyword)) ||
+                    r.trackingNumber.toLowerCase().includes(keyword)
+                );
+            }
+
+            const container = document.getElementById('recordsList');
+            if (records.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div style="font-size:48px; margin-bottom:12px;">📭</div><div>${keyword ? '未找到匹配记录' : '暂无入库记录'}</div></div>`;
+                return;
+            }
+
+            if (listViewMode === 'customer') {
+                renderCustomerGroupView(records, container);
+            } else {
+                renderTimeView(records, container);
+            }
+        }
+
+        function renderTimeView(records, container) {
+            const today = new Date().toDateString();
+            let html = '';
+            records.forEach(r => {
+                const date = new Date(r.createdAt);
+                const isToday = date.toDateString() === today;
+                const timeStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+                const statusBadge = r.status === 'out'
+                    ? '<span class="badge" style="background:#d1fae5; color:#065f46;">已出库</span>'
+                    : '<span class="badge" style="background:#fef3c7; color:#92400e;">在库</span>';
+                const todayBadge = isToday ? '<span class="badge" style="background:#dbeafe; color:#1e40af;">今日</span>' : '';
+                html += `<div class="record-card" onclick="showDetail('${r.id}')"><div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;"><div><div style="font-size:16px; font-weight:700; color:#111827;">${escapeHtml(r.customerName)}</div><div style="font-size:13px; color:#6b7280; margin-top:2px;">单号: ${escapeHtml(r.trackingNumber)}${r.memberId ? `<span style="margin-left:6px; color:#059669; font-weight:600;">会员:${escapeHtml(r.memberId)}</span>` : ''}</div></div><div style="display:flex; gap:4px;">${statusBadge}${todayBadge}</div></div><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:13px; color:#9ca3af;">${timeStr} · ${r.quantity}件 · ${r.productPhotos.length}张图</div><span style="color:#2563eb; font-size:13px; font-weight:600;">查看详情 →</span></div></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderCustomerGroupView(records, container) {
+            // 按客户分组
+            const groups = {};
+            records.forEach(r => {
+                const key = r.customerName + '|' + r.memberId;
+                if (!groups[key]) groups[key] = { name: r.customerName, memberId: r.memberId, records: [], totalQty: 0 };
+                groups[key].records.push(r);
+                groups[key].totalQty += r.quantity;
+            });
+
+            // 按记录数量排序
+            const sortedKeys = Object.keys(groups).sort((a, b) => groups[b].records.length - groups[a].records.length);
+
+            let html = '';
+            sortedKeys.forEach(key => {
+                const g = groups[key];
+                const safeId = key.replace(/[^a-zA-Z0-9]/g, '_');
+                html += `<div class="customer-group-card">
+                    <div class="customer-group-header" id="cg-header-${safeId}" onclick="toggleCustomerGroup('${safeId}')">
+                        <div class="cg-left">
+                            <div class="cg-name">${escapeHtml(g.name)}</div>
+                            <div class="cg-meta">会员编号：${escapeHtml(g.memberId)} · 共 ${g.totalQty} 件</div>
+                        </div>
+                        <div class="cg-right">
+                            <span class="cg-count">${g.records.length} 条</span>
+                            <svg class="cg-arrow" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                        </div>
+                    </div>
+                    <div class="customer-group-body" id="cg-body-${safeId}">
+                        ${g.records.map(r => {
+                            const date = new Date(r.createdAt);
+                            const timeStr = `${date.getMonth()+1}/${date.getDate()} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+                            return `<div class="record-card" onclick="showDetail('${r.id}')"><div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:6px;"><div style="font-size:14px; font-weight:600; color:#111827; font-family:monospace;">${escapeHtml(r.trackingNumber)}</div><div style="display:flex; gap:4px;">${r.status === 'out' ? '<span class="badge" style="background:#d1fae5; color:#065f46;">已出库</span>' : '<span class="badge" style="background:#fef3c7; color:#92400e;">在库</span>'}<span class="badge" style="background:#ecfdf5; color:#065f46;">${r.quantity}件</span></div></div><div style="display:flex; justify-content:space-between; align-items:center;"><div style="font-size:12px; color:#9ca3af;">${timeStr} · ${r.productPhotos.length}张图</div><span style="color:#2563eb; font-size:12px; font-weight:600;">查看详情 →</span></div></div>`;
+                        }).join('')}
+                    </div>
+                    <div class="customer-group-actions">
+                        <button class="cg-action-btn export" onclick="openExportModal('${escapeJs(g.name)}', '${escapeJs(g.memberId)}')">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                            导出记录
+                        </button>
+                        <button class="cg-action-btn toggle" onclick="toggleCustomerGroup('${safeId}')">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+                            展开/收起
+                        </button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function updateStats() {
+            const records = getRecords();
+            const today = new Date().toDateString();
+            const todayCount = records.filter(r => new Date(r.createdAt).toDateString() === today).length;
+            document.getElementById('statTotal').textContent = records.length;
+            document.getElementById('statToday').textContent = todayCount;
+            document.getElementById('statInStock').textContent = records.filter(r => r.status === 'in').length;
+        }
+
+        // ========== 详情弹窗 ==========
+        function showDetail(id) {
+            const records = getRecords();
+            const r = records.find(x => x.id === id);
+            if (!r) return;
+            currentDetailId = id;
+
+            const date = new Date(r.createdAt);
+            const timeStr = `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')} ${String(date.getHours()).padStart(2,'0')}:${String(date.getMinutes()).padStart(2,'0')}`;
+
+            let productImgs = '';
+            r.productPhotos.forEach((p, i) => {
+                productImgs += `<div style="margin-bottom:8px;"><div style="font-size:12px; color:#6b7280; margin-bottom:4px;">产品图 ${i+1}</div><img src="${p}" class="detail-img" onclick="window.open(this.src)"></div>`;
+            });
+
+            document.getElementById('modalBody').innerHTML = `
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">状态</span><div style="margin-top:4px;">${r.status === 'out' ? `<span class="badge" style="background:#d1fae5; color:#065f46;">✅ 已出库</span><span style="font-size:13px; color:#6b7280; margin-left:8px;">${r.outAt ? new Date(r.outAt).toLocaleString('zh-CN') : ''}</span>` : '<span class="badge" style="background:#fef3c7; color:#92400e;">📦 在库</span>'}</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">客户姓名</span><div style="font-size:17px; font-weight:600; margin-top:2px;">${escapeHtml(r.customerName)}</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">会员编号</span><div style="font-size:17px; font-weight:600; margin-top:2px; color:#059669;">${escapeHtml(r.memberId || '-')}</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">快递单号</span><div style="font-size:17px; font-weight:600; margin-top:2px; font-family:monospace;">${escapeHtml(r.trackingNumber)}</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">物品数量</span><div style="font-size:17px; font-weight:600; margin-top:2px;">${r.quantity} 件</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">入库时间</span><div style="font-size:14px; margin-top:2px;">${timeStr}</div></div>
+                <div style="margin-bottom:12px;"><span style="color:#6b7280; font-size:13px;">快递单号照片</span><img src="${r.trackingPhoto}" class="detail-img" onclick="window.open(this.src)"></div>
+                <div><span style="color:#6b7280; font-size:13px;">内件产品图 (${r.productPhotos.length}张)</span>${productImgs}</div>
+            `;
+            document.getElementById('detailModal').classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('show');
+            currentDetailId = null;
+        }
+
+        function deleteCurrentRecord() {
+            if (!currentDetailId) return;
+            if (!verifyAdminPwd('删除记录')) return;
+            if (!confirm('密码正确 ✅\n确定要删除这条记录吗？删除后不可恢复！')) return;
+            let records = getRecords();
+            records = records.filter(r => r.id !== currentDetailId);
+            saveRecords(records);
+            closeModal();
+            renderList();
+            updateStats();
+            showToast('🗑️ 已删除');
+        }
+
+        // ========== 页面切换 ==========
+        function switchTab(page, el) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            el.classList.add('active');
+            if (page === 'list') {
+                renderList();
+                updateStats();
+            } else if (page === 'customers') {
+                renderCustomerList();
+            } else if (page === 'outbound') {
+                document.getElementById('outboundResult').innerHTML = '';
+                renderOutboundToday();
+            }
+        }
+
+        // ========== 工具函数 ==========
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 2500);
+        }
+
+        // ========== 初始化 ==========
+        // 在每个页面顶部注入品牌 Logo
+        document.querySelectorAll('.page').forEach(p => {
+            p.insertAdjacentHTML('afterbegin', `<div class="brand-bar"><img src="${LOGO_SRC}" class="brand-logo" alt="TM"><span class="brand-name">仓库本地系统</span></div>`);
+        });
+        updateStats();
+        renderProductPhotos();
+        renderCustomerList();
+    </script>
+</body>
+</html>
